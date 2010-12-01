@@ -21,7 +21,7 @@
 #include "stdio16.h"
 #include "version.h"
 #include "namespaces.h"
-#define VERSION "1.13"
+#define VERSION "1.14"
 #define MAX_DEPTH 256
 #if PY_VERSION_HEX < 0x02050000
 #	define Py_ssize_t int
@@ -826,12 +826,10 @@ static int pyRXPParser_setattr(pyRXPParserObject *self, char *name, PyObject* va
 
 static PyObject* pyRXPParser_parse(pyRXPParserObject* xself, PyObject* args, PyObject* kw)
 {
-	int			srcLen;
 	Py_ssize_t	i;
-	char		*src;
 	FILE16		*f;
 	InputSource source;
-	PyObject	*retVal=NULL;
+	PyObject	*retVal=NULL, *osrc=NULL, *dsrc=NULL, *src;
 	char		errBuf[512];
 	ParserDetails	CB;
 	Parser		p;
@@ -843,7 +841,24 @@ static PyObject* pyRXPParser_parse(pyRXPParserObject* xself, PyObject* args, PyO
 	if(self->fourth) Py_INCREF(self->fourth);
 	if(self->srcName) Py_INCREF(self->srcName);
 
-	if(!PyArg_ParseTuple(args, "s#", &src, &srcLen)) goto L_1;
+	if(!PyArg_ParseTuple(args, "O", &osrc)) goto L_1;
+	if(PyUnicode_Check(osrc)){
+		/*unicode*/
+#if CHAR_SIZE==16
+		if(!(src = PyUnicode_AsUTF16String(osrc))) goto L_1;
+#else
+		if(!(src = PyUnicode_AsUTF8String(osrc))) goto L_1;
+#endif
+		dsrc = src;
+		}
+	else if(PyString_Check(osrc)){
+		/*bytes*/
+		src = osrc;
+		}
+	else{
+		PyErr_SetString(PyExc_TypeError,"parse argument neither str or unicode");
+		goto L_1;
+		}
 	if(kw){
 		PyObject *key, *value;
 		i = 0;
@@ -893,7 +908,7 @@ static PyObject* pyRXPParser_parse(pyRXPParserObject* xself, PyObject* args, PyO
 	/*set up the parsers Stderr stream thing so we get it in a string*/
 	Fclose(Stderr);
 	Stderr = MakeFILE16FromString(errBuf,sizeof(errBuf)-1,"w");
-	f = MakeFILE16FromString(src,srcLen,"r");
+	f = MakeFILE16FromString(PyString_AS_STRING(src),PyString_GET_SIZE(src),"r");
 	source = SourceFromFILE16(PyString_AsString(self->srcName),f);
 	retVal = ProcessSource(p,source);
 	e = source->entity; /*used during FreeParser closing source!*/
@@ -903,6 +918,7 @@ static PyObject* pyRXPParser_parse(pyRXPParserObject* xself, PyObject* args, PyO
 	FreeEntity(e);
 	deinit_parser();
 L_1:
+	Py_XDECREF(dsrc);
 	Py_XDECREF(self->warnCB);
 	Py_XDECREF(self->eoCB);
 	Py_XDECREF(self->fourth);
