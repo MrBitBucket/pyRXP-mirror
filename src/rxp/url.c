@@ -77,6 +77,8 @@ static void parse_url(const char *url,
 
 static int hexval(int hex);
 
+static char *mystrcpy(char *s1, const char *s2);
+
 /* Mapping of scheme names to opening functions */
 
 struct {
@@ -254,7 +256,8 @@ char *url_merge(const char *url, const char *base,
 
 	    if(j - i == 2 && p[i+1] == '.')
 	    {
-		strcpy(&p[i+1], p[j] ? &p[j+1] : &p[j]);
+		mystrcpy(&p[i+1], p[j] ? &p[j+1] : &p[j]);
+		i = 0;		/* start again from beginning */
 		continue;
 	    }
 
@@ -268,7 +271,7 @@ char *url_merge(const char *url, const char *base,
 	       (p[j+3] == '/' || p[j+3] == '\0') &&
 	       (j - i != 3 || p[i+1] != '.' || p[i+2] != '.'))
 	    {
-		strcpy(&p[i+1], p[j+3] ? &p[j+4] : &p[j+3]);
+		mystrcpy(&p[i+1], p[j+3] ? &p[j+4] : &p[j+3]);
 		i = 0;		/* start again from beginning */
 		continue;
 	    }
@@ -559,6 +562,14 @@ static void parse_url(const char *url,
     *scheme = *host = *path = 0;
     *port = -1;
 
+    /* Check for degenerate case */
+    
+    if(url[0] == 0)
+    {
+	*path = strdup8("");
+	return;
+    }
+
     /* Does it start with a scheme? */
     
     for(p = (char *)url; *p; p++)
@@ -633,4 +644,17 @@ static int hexval(int hex)
     if(hex >= 'A' && hex <= 'F')
 	return hex - 'A' + 10;
     return -1;
+}
+
+/* version of strcpy that works for overlapping strings */
+
+static char *mystrcpy(char *s1, const char *s2)
+{
+    char *t = s1;
+
+    while(*s2)
+	*s1++ = *s2++;
+    *s1 = 0;
+
+    return t;
 }
