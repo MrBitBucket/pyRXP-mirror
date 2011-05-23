@@ -177,6 +177,8 @@ char *default_base_url(void)
  * The parts of the URL are returned in scheme, host, port and path
  * if these are non-null.
  * Caller should free the results.
+ *
+ * XXX we probably don't handle the query component properly.
  */
 
 char *url_merge(const char *url, const char *base,

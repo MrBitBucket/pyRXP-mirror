@@ -4,9 +4,11 @@ rxp - XML parser program
 .SH SYNOPSIS
 .B rxp
 [
-.B \-avVEsbnmtx
+.B \-abemnNRsStvVx4
 ] [
-.B -o b|p|0|1|2|3
+.B -o b|p|0|1|2|3|i|d
+] [
+.B U 0|1|2
 ] [
 .B -c
 .I encoding
@@ -56,6 +58,11 @@ Enable XML namespace support.  The document will be checked for
 correct namespace syntax, and if \f3-b\f1 is specified  qualified 
 element and attribute names will be displayed with their URIs.
 .TP
+.B -R
+The value of this flag is a time limit in seconds, after which the
+program will abort.  This is to protect against denial-of-service
+attacks using malicious documents.
+.TP
 .B -S
 Keep track of xml:space attributes.  This will only affect output when
 \f3-b\f1 is specified.
@@ -84,6 +91,9 @@ is \f3b\f1, output is printed as "bits" (equivalent to
 is \f30\f1, output is suppressed (equivalent to \f3-s\f1).  If it is
 \f31\f1, \f32\f1 or \f33\f1, output is in first, second or third
 canonical form.
+If it is \f3i\f1, output is a dump of the document's infoset.
+If it is \f3d\f1, output is in a form suitable for use with "diff";
+in particular attributes are sorted into alphabetical order.
 .TP
 .B -m
 Merge PCData across entity references.  This will only affect the output when
@@ -125,10 +135,28 @@ specify big- or little-endian byte order (the default is the host
 byte order).  If no \f3-c\f1 or \f3-x\f1 option is given, output is in 
 the same encoding as the input document.
 .TP
+\f3-D \f2name\f1 \f2sysid\f1
+Force use of the document type specified by \f2sysid\f1.  The root element name
+for validation is \f2name\f1.  Any DTD in the document is ignored.  This flag
+does not imply validation; use \f3-V\f1 if required.
+.TP
+.B -i
+Do xml:id processing.  Attributes named xml:id are recognised as IDs even if not
+declared.
+.TP
+.B -I
+The same as \f3-i\f1, but in addition xml:id attributes are checked for uniqueness.
+.TP
 .B -z
 Use a shorter format for error messages.  Particularly useful when using
 the parser in Emacs compilation mode, so that Emacs can find the
 error location.
+.TP
+.B -4
+Use pre-fifth-edition rules for XML 1.0.  XML 1.0 fifth edition extends the
+set of allowed name characters to match XML 1.1, and allows unrecognised
+version numbers of the form 1.x to be treated as 1.0.  the \f3-4\f1 flag
+disables these changes.
 .SH EXIT STATUS
 If the \f3-V\f1 flag is given, and the document is well-formed but
 not valid, 2 is returned.  If the document is not well-formed, or a
@@ -142,11 +170,23 @@ exit status.
 If the environment variable
 .B XML_CATALOG_FILES
 is set, XML catalog processing is enabled.
-The variable should be set to a space-separated list of catalog
+A catalog can be used to map system and public identifiers to 
+local files.  In particular, this allows copies of common DTDs to be
+kept locally, so that
+.B rxp
+does not have to fetch them over the internet.
+.B XML_CATALOG_FILES
+should be set to a space-separated list of catalog
 files.  The variable
 .B XML_CATALOG_PREFER
 may be set to \f3public\f1 or \f3system\f1 to
 set the initial mode for catalog processing; the default is \f3system\f1.
+
+If the variable
+.B RXPURL
+is set, it is used as the URL of the document to parse.  This may
+be useful in CGI scripts and the like to avoid shell parsing of a
+user-supplied argument.
 
 The variable
 .B http_proxy

@@ -21,4 +21,6 @@ FILE16 *http_open(const char *url,
 		  const char *host, int port, const char *path,
 		  const char *type, char **redirected_url);
 
+void http_set_user_agent(const char *agent);
+
 #endif /* HTTP_H */

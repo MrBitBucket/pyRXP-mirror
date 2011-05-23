@@ -1,11 +1,11 @@
 #ifndef _RXP_SYSTEM_H
 #define _RXP_SYSTEM_H
 #define SOCKETS_IMPLEMENTED
+#define HAVE_LONG_LONG_INT
 
 #define STD_API
 #define XML_API
 #define WIN_IMP
-#define EXPRT
 #ifdef _WIN32
 #	ifndef WIN32
 #		define WIN32

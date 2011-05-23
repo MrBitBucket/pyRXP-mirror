@@ -146,7 +146,11 @@ enum parser_flag {
     ProcessDTD,
     XML11Syntax,
     XML11CheckNF,
-    XML11CheckExists
+    XML11CheckExists,
+    XMLID,
+    XMLIDCheckUnique,
+    Pre105Chars,
+    Pre105VersionCheck
 };
 typedef enum parser_flag ParserFlag;
 

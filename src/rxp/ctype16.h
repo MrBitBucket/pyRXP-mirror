@@ -1,7 +1,7 @@
 #ifndef CTYPE16_H
 #define CTYPE16_H
 
-#ifndef FOR_LT
+#ifndef STD_API
 #define STD_API
 #endif
 
@@ -29,10 +29,12 @@ extern STD_API unsigned char xml_char_map[];
 #define is_xml_whitespace(c) (xml_char_map[(int)(c) & 0xff] & xml_whitespace)
 
 #define xml_char_map_11 0
+#define xml_char_map_105 0
 
 #else
 
 extern STD_API unsigned char xml_char_map_11[];
+extern STD_API unsigned char xml_char_map_105[];
 
 /* Note!  these macros evaluate their argument more than once! */
 

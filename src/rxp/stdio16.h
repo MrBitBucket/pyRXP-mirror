@@ -15,6 +15,9 @@ extern STD_API FILE16 *Stdin, *Stdout, *Stderr;
 STD_API FILE16 *MakeFILE16FromFILE(FILE *f, const char *type);
 STD_API FILE16 *MakeFILE16FromFD(int fd, const char *type);
 STD_API FILE16 *MakeFILE16FromString(void *buf, long size, const char *type);
+STD_API FILE16 *MakeStringFILE16(const char *type);
+STD_API void *StringFILE16String(FILE16 *file);
+STD_API int StringFILE16StringLength(FILE16 *file);
 #ifdef WIN32
 #ifdef SOCKETS_IMPLEMENTED
 STD_API FILE16 *MakeFILE16FromWinsock(int sock, const char *type);

@@ -146,6 +146,8 @@ struct element_definition {
     AttributeDefinition id_attribute; /* ID attribute, if it has one */
     AttributeDefinition xml_space_attribute; /* xml:space attribute, if it has one */
     AttributeDefinition xml_lang_attribute; /* xml:lang attribute, if it has one */
+    AttributeDefinition xml_id_attribute; /* xml:id attribute, if it has one */
+    AttributeDefinition xml_base_attribute; /* xml:base attribute, if it has one */
     AttributeDefinition notation_attribute; /* NOTATION attribute, if it has one */
     NSElementDefinition cached_nsdef;
     const Char *prefix, *local;

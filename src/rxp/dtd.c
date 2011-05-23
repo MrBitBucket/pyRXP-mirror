@@ -468,6 +468,8 @@ ElementDefinition DefineElementN(Dtd dtd, const Char *name, int namelen,
     e->id_attribute = 0;
     e->xml_space_attribute = 0;
     e->xml_lang_attribute = 0;
+    e->xml_id_attribute = 0;
+    e->xml_base_attribute = 0;
     e->notation_attribute = 0;
     e->cached_nsdef = 0;
     e->is_externally_declared = 0;
@@ -633,7 +635,9 @@ AttributeDefinition
     AttributeDefinition a;
     static Char xml_space[] = {'x','m','l',':','s','p','a','c','e',0}; 
     static Char xml_lang[] = {'x','m','l',':','l','a','n','g',0};
-   static Char xmlns[] = {'x','m','l','n','s',0};
+    static Char xml_id[] = {'x','m','l',':','i','d',0};
+    static Char xml_base[] = {'x','m','l',':','b','a','s','e',0};
+    static Char xmlns[] = {'x','m','l','n','s',0};
     Char *t;
 
     if(!(a= Malloc(sizeof(*a))))
@@ -691,6 +695,10 @@ AttributeDefinition
 	element->xml_space_attribute = a;
     else if(Strcmp(name, xml_lang) == 0)
 	element->xml_lang_attribute = a;
+    else if(Strcmp(name, xml_id) == 0)
+	element->xml_id_attribute = a;
+    else if(Strcmp(name, xml_base) == 0)
+	element->xml_base_attribute = a;
 
     a->cached_nsdef = 0;
 

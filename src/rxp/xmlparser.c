@@ -129,6 +129,7 @@ static int skip_dtd_whitespace(Parser p, int allow_pe);
 static int parse_cdata(Parser p);
 static int process_nsl_decl(Parser p);
 static int process_xml_decl(Parser p);
+static int is_v1x(const char *version);
 static int parse_dtd(Parser p);
 static int read_markupdecls(Parser p);
 static int error(Parser p, const char8 *format, ...);
@@ -683,7 +684,11 @@ Parser NewParser(void)
        entity (for string reading), and the version-determining code
        never gets run. */
     p->xml_version = XV_1_0;
+#if CHAR_SIZE == 8
     p->map = xml_char_map;
+#else
+    p->map = xml_char_map_105;
+#endif
 
     return p;
 }
@@ -953,6 +958,8 @@ int ParserPush(Parser p, InputSource source)
 	    ParserSetFlag(p, XML11Syntax, 1);
 #if CHAR_SIZE == 16
 	    p->map = xml_char_map_11;
+#else
+	    p->map = xml_char_map;
 #endif
 #if CHAR_SIZE == 16
 	    /* XXX is this the best place to do this? */
@@ -965,8 +972,15 @@ int ParserPush(Parser p, InputSource source)
 	    }
 #endif
 	}
+#if CHAR_SIZE==16
+	else if(ParserGetFlag(p, Pre105Chars))
+	    p->map = xml_char_map;
+	else
+	    p->map = xml_char_map_105;
+#else
 	else
 	    p->map = xml_char_map;
+#endif
 
 	source->map = p->map;
     }
@@ -1133,7 +1147,6 @@ static int parse(Parser p)
 {
     int c;
     InputSource s;
-
     if(p->state == PS_end || p->state == PS_error)
     {
 	/* After an error or EOF, just keep returning EOF */
@@ -1682,6 +1695,77 @@ static int parse_starttag(Parser p)
     else
 	p->xbit.wsm = WSM_unspecified;
 
+    /* Look for xml:id attribute */
+
+    if(ParserGetFlag(p, XMLID) && e->xml_id_attribute)
+    {
+	Char *s;
+
+	d = e->xml_id_attribute;
+
+	for(a=p->xbit.attributes; a; a=a->next)
+	    if(a->definition == d)
+		break;
+	if(!a)
+	    goto id_done;
+
+	/* check that it's an NCName */
+
+	if(!is_xml_namestart(a->value[0], p->map))
+	{
+	    warn(p, "xml:id error: value \"%S\" does not start with a name start character",
+		a->value);
+	    goto id_done;
+	}
+
+	for(s=a->value; *s; s++)
+	{
+	    if(*s == ':')
+	    {
+		warn(p, "xml:id error: value \"%S\" contains a colon", a->value);
+		goto id_done;
+	    }
+	    else if(!is_xml_namechar(*s, p->map))
+	    {
+		warn(p, "xml:id error: value \"%S\" contains a character which is not a name character",
+		    a->value);
+		goto id_done;
+	    }
+	}
+
+    id_done:
+	;
+    }
+
+    if(ParserGetFlag(p, XMLIDCheckUnique))
+    {
+	int found;
+	HashEntry id_entry;
+
+	for(a=p->xbit.attributes; a; a=a->next)
+	{
+	    d = a->definition;
+	    if(d->type != AT_id)		
+		continue;
+	    if(ParserGetFlag(p, Validate) && d->declared)
+		/* declared attributes will have been checked during validation */
+		continue;
+
+	    id_entry = hash_find_or_add(p->id_table,
+					a->value,
+					Strlen(a->value)*sizeof(Char),
+					&found);
+	    if(!id_entry)
+		return error(p, "System error");
+	    
+	    if(!found)
+		hash_set_value(id_entry, (void *)2);
+	    else
+		warn(p, "xml:id error: duplicate ID attribute value %S",
+		     a->value);
+	}
+    }
+
     if(ParserGetFlag(p, XMLNamespaces))
     {
 	Attribute *attp;
@@ -1954,6 +2038,8 @@ static int parse_attribute(Parser p)
 	if(!(def = DefineAttributeN(elt, p->name, p->namelen,
 				    AT_cdata, 0, DT_implied, 0, 0)))
 	    return error(p, "System error");
+	if(ParserGetFlag(p, XMLID) && elt->xml_id_attribute == def)
+	    def->type = AT_id;
 	if(ParserGetFlag(p, XMLNamespaces))
 	{
 	    require(check_qualname_syntax(p, def->name, "Attribute"));
@@ -2137,9 +2223,9 @@ static int parse_pcdata(Parser p)
 		s->next = next + 3;
 		require(parse_comment(p, 1, 0));
                 NF16StartCheck(p);
-		buf = s->line;
 		buflen = s->line_length;
 		next = s->next;
+		buf = s->line; 	/* thanks to robin@reportlab.com for this */
 	    }
 	    else
 	    {
@@ -3057,6 +3143,8 @@ static int process_xml_decl(Parser p)
 		    s->entity->xml_version = XV_1_0;
 		else if(strcmp8(s->entity->version_decl, "1.1") == 0)
 		    s->entity->xml_version = XV_1_1;
+		else if(!ParserGetFlag(p, Pre105VersionCheck) && is_v1x(s->entity->version_decl))
+		    s->entity->xml_version = XV_1_0;
 		else
 		{
 		    if(ParserGetFlag(p, XMLStrictWFErrors))
@@ -3089,6 +3177,22 @@ static int process_xml_decl(Parser p)
     Consume(p->save_pbuf);
 
     return 0;
+}
+
+static int is_v1x(const char *version)
+{
+    int i;
+
+    if(version[0] != '1' || version[1] != '.')
+	return 0;
+    if(!version[2])
+	return 0;
+
+    for(i=2; version[i]; i++)
+	if(version[i] < '0' || version[i] > '9')
+	    return 0;
+
+    return 1;
 }
 
 static int parse_cdata(Parser p)
@@ -3368,7 +3472,7 @@ static int parse_reference(Parser p, int pe, int expand, int allow_external)
 		      e->name));
     }
     else if(ParserGetFlag(p, Validate) && p->standalone == SDD_yes &&
-	    e->is_externally_declared)
+	    p->state == PS_body && e->is_externally_declared)
     {
 	require(validity_error(p, "Reference to externally declared entity "
 			          "\"%S\" in document declared standalone",
@@ -3435,6 +3539,16 @@ static int parse_character_reference(Parser p, int expand)
 	    code = code * base + 10 + (c - 'A');
 	else
 	    code = code * base + 10 + (c - 'a');
+
+	/* Test here rather than just at the end to avoid undetected overflow */
+	if(code >= 0x110000)
+	{
+	    if(ParserGetFlag(p, ErrorOnBadCharacterEntities))
+		return error(p, "Character reference code too big");
+	    else
+		warn(p, "Character reference code too big, ignored");
+	    return 0;
+	}
     }
 
 /* allow refs to C0 and C1 controls except NUL in XML 1.1 */
@@ -3457,9 +3571,9 @@ static int parse_character_reference(Parser p, int expand)
 	 (p->xml_version >= XV_1_1 && is_xml11_legal_control(code))))
     {
 	if(ParserGetFlag(p, ErrorOnBadCharacterEntities))
-	    return error(p, "0x%x is not a valid UTF-16 XML character", code);
+	    return error(p, "0x%x is not a valid XML character", code);
 	else
-	    warn(p, "0x%x is not a valid UTF-16 XML character; ignored", code);
+	    warn(p, "0x%x is not a valid XML character; ignored", code);
 	return 0;
     }
 
@@ -4185,6 +4299,13 @@ static int parse_attlist_decl(Parser p, Entity ent)
 	    return error(p, "System error");
 	if(parsing_external_subset(p))
 	    a->is_externally_declared = 1;
+	if(ParserGetFlag(p, XMLID) && 
+	   element->xml_id_attribute == a && a->type != AT_id)
+	{
+	    warn(p, "xml:id error: xml:id attribute must be declared as type ID");
+	    /* Fix the declaration so that we treat it as type ID */
+	    a->type = AT_id;
+	}
 	if(ParserGetFlag(p, XMLNamespaces))
 	{
 	    require(check_qualname_syntax(p, a->name, "Attribute"));
@@ -4443,6 +4564,8 @@ static int parsing_internal(Parser p)
 	return 0;
     return 1;
 }
+
+/* NB assumes we are parsing the DTD */
 
 static int parsing_external_subset(Parser p)
 {
@@ -5365,7 +5488,7 @@ static int check_attribute_syntax(Parser p, AttributeDefinition a, ElementDefini
 	{
 	    require(validity_error(p, "The %s %S of element %S "
 				   "is declared as %s but contains a token "
-				   "that does not start with a name character",
+				   "that does not start with a name start character",
 				   message, a->name, e->name, 
 				   AttributeTypeName[a->type]));
 	    return 0;
@@ -5429,9 +5552,13 @@ static int check_attribute_token(Parser p, AttributeDefinition a, ElementDefinit
 				   message, a->name, e->name, length, value));
 	}
 	break;
+    case AT_id:
+	if(!a->declared)
+	    /* don't validate undeclared xml:id attributes */
+	    return 0;
+	/* fall through */
     case AT_idref:
     case AT_idrefs:
-    case AT_id:
 	if(!real_use)
 	    return 0;		/* don't check defaults unless they're used */
 	id_entry = hash_find_or_add(p->id_table, value, length*sizeof(Char),
@@ -5450,13 +5577,18 @@ static int check_attribute_token(Parser p, AttributeDefinition a, ElementDefinit
 	}
 	else if(a->type == AT_id)
 	{
-	    if((int)hash_get_value(id_entry))
+	    int idinfo = (int)hash_get_value(id_entry);
+	    if(idinfo & 1)
 	    {
 		require(validity_error(p, "Duplicate ID attribute value %.*S",
 				       length, value));
 	    }
 	    else
-		hash_set_value(id_entry, (void *)1);
+	    {
+		if(idinfo & 2)
+		    warn(p, "xml:id error: duplicate ID attribute value %S", value);
+		hash_set_value(id_entry, (void *)(idinfo | 1));
+	    }
 	}
 	break;
     case AT_notation:

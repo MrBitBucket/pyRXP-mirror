@@ -132,7 +132,7 @@ static char *res_ext(Catalog catalog, char *file,
 	    if(catalog_debug)
 		fprintf(stderr, "matched %s, returning %s\n",
 			entry->match, entry->value);
-	    return entry->value;
+	    return strdup8(entry->value);
 	}
     }
 
@@ -229,7 +229,7 @@ static char *res_ext(Catalog catalog, char *file,
 	    if(catalog_debug)
 		fprintf(stderr, "matched %s, returning %s\n",
 			entry->match, entry->value);
-	    return entry->value;
+	    return strdup8(entry->value);
 	}
     }
 

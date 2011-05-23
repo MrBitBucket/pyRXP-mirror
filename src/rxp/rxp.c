@@ -1,10 +1,24 @@
 #include <stdio.h>
+#include <assert.h>
 #include <stdlib.h>
 #include <stdarg.h>
+
 #if defined(WIN32) && ! defined(__CYGWIN__)
 #include <io.h>
 #include <fcntl.h>
 #endif
+
+#ifndef WIN32
+#define TIME_LIMIT
+#endif
+
+#ifdef TIME_LIMIT
+#include <signal.h>
+#include <sys/types.h>
+#include <sys/time.h>
+#include <sys/resource.h>
+#endif
+
 #include "system.h"
 #include "charset.h"
 #include "string16.h"
@@ -24,7 +38,7 @@ void print_bit(Parser p, XBit bit);
 void print_ns_attrs(NamespaceBinding ns, int count);
 void print_namespaces(NamespaceBinding ns);
 void print_attrs(ElementDefinition e, Attribute a);
-void print_text(Char *text);
+void print_text(Char *text, int is_attr);
 int printable(int c);
 void print_special(int c);
 void print_text_bit(Char *text);
@@ -37,13 +51,18 @@ static const char8 *minimal_uri(const char8 *uri, const char8 *base);
 int verbose = 0, expand = 1, nsgml = 0,
     attr_defaults = 0, merge = 0, strict_xml = 0, tree = 0, validate = 0,
     xml_space = 0, namespaces = 0, simple_error = 0, experiment = 0,
-    read_dtd = 0, unicode_check = 0;
-enum {o_unspec, o_none, o_bits, o_plain, o_can1, o_can2, o_can3, o_infoset, o_diff} output_format = o_unspec;
-char *enc_name = 0, *base_uri = 0;
+    read_dtd = 0, unicode_check = 0, xml_id = 0, pre_105 = 0;
+enum {o_unspec, o_none, o_bits, o_plain, o_can1, o_can2, o_can3, o_infoset, o_diff, o_diff2} output_format = o_unspec;
+char *enc_name = 0, *base_uri = 0, *my_dtd_name, *my_dtd_sysid = 0;
 CharacterEncoding encoding = CE_unknown;
 InputSource source = 0;
 int need_canonical_dtd = 0;
 int xml_version;
+
+#ifdef TIME_LIMIT
+void time_exceeded(int sig);
+int time_limit = 0;
+#endif
 
 #define canonical_output (output_format >= o_can1)
 
@@ -54,7 +73,7 @@ int main(int argc, char **argv)
 {
     int i;
     Parser p;
-    char *s;
+    char *s, *url;
     Entity ent = 0;
 
     /* Sigh... guess which well-known system doesn't have getopt() */
@@ -122,6 +141,9 @@ int main(int argc, char **argv)
 		case 'd':
 		    output_format = o_diff;
 		    break;
+		case 'D':
+		    output_format = o_diff2;
+		    break;
 		default:
 		    fprintf(stderr, "bad output format %s\n", argv[i]);
 		    return 1;
@@ -153,6 +175,19 @@ int main(int argc, char **argv)
 	    case 'x':
 		strict_xml = 1;
 		attr_defaults = 1;
+		break;
+	    case 'R':
+#ifdef TIME_LIMIT
+		if(++i >= argc)
+		{
+		    fprintf(stderr, "-R requires argument\n");
+		    return 1;
+		}
+		time_limit = atoi(argv[i]);
+#else
+		fprintf(stderr,"-R not supported on this system\n");
+		return 1;
+#endif
 		break;
 	    case 'S':
 		xml_space = 1;
@@ -193,15 +228,47 @@ int main(int argc, char **argv)
 	    case 'd':
 		read_dtd = 1;
 		break;
+	    case 'D':
+		if(i+2 >= argc)
+		{
+		    fprintf(stderr, "-D requires 2 arguments\n");
+		    return 1;
+		}
+		my_dtd_name = argv[++i];
+		my_dtd_sysid = argv[++i];
+		break;
+	    case 'i':
+		xml_id = 1;
+		break;
+	    case 'I':
+		xml_id = 2;
+		break;
+	    case '4':
+		pre_105 = 1;
+		break;
 	    case '.':
 		experiment = 1;
 		break;
 	    default:
 		fprintf(stderr, 
-			"usage: rxp [-abemnNsStvVx] [-o b|0|1|2|3|i|d] [-U 0|1|2] [-c encoding] [-u base_uri] [url]\n");
+			"usage: rxp [-abeiImnNRsStvVx4] [-o b|0|1|2|3|i|d] [-U 0|1|2] [-c encoding] [-D name sysid] [-u base_uri] [url]\n");
 		return 1;
 	    }
     }
+
+#ifdef TIME_LIMIT
+    if(time_limit > 0)
+    {
+	struct rlimit r;
+	r.rlim_cur = r.rlim_max = time_limit;
+	signal(SIGXCPU, time_exceeded);
+	if(setrlimit(RLIMIT_CPU, &r) < 0)
+	{
+	    perror("setrlimit");
+	    return 1;
+	}
+    }
+#endif
 
     init_parser();
 
@@ -209,11 +276,21 @@ int main(int argc, char **argv)
 	fprintf(stderr, "%s\n", rxp_version_string);
 
     p = NewParser();
-    CatalogEnable(p);
 
-    if(i < argc)
+    /* For use in CGI scripts, so user-supplied name is not parsed as
+       command argument */
+    url = getenv("RXPURL");
+
+    if(!url)
+	/* don't use catalogue in CGI scripts */
+	CatalogEnable(p);
+    
+    if(!url && i < argc)
+	url = argv[i];
+
+    if(url)
     {
-	ent = NewExternalEntity(0, 0, argv[i], 0, 0);
+	ent = NewExternalEntity(0, 0, url, 0, 0);
 	if(ent)
 	{
 	    if(p->entity_opener)
@@ -240,6 +317,17 @@ int main(int argc, char **argv)
 	ParserSetFlag(p, Validate, 1);
     if(validate > 1)
 	ParserSetFlag(p, ErrorOnValidityErrors, 1);
+
+    if(xml_id)
+	ParserSetFlag(p, XMLID, 1);
+    if(xml_id > 1)
+	ParserSetFlag(p, XMLIDCheckUnique, 1);
+
+    if(pre_105)
+    {
+	ParserSetFlag(p, Pre105Chars, 1);
+	ParserSetFlag(p, Pre105VersionCheck, 1);
+    }
 
     if(read_dtd)
     {
@@ -321,6 +409,23 @@ int main(int argc, char **argv)
 	return 1;
     }
 
+    if(my_dtd_name)
+    {
+	Entity my_dtd = NewExternalEntity(0, 0, my_dtd_sysid, 0, source->entity);
+	p->dtd->name = strdup_char8_to_Char(my_dtd_name);
+	p->dtd->internal_part = 0;
+	p->dtd->external_part = my_dtd;
+	ParseDtd(p, my_dtd);
+	if(p->xbit.type == XBIT_error)
+	{
+	    if(my_dtd_sysid[0] == '-')
+		fprintf(stderr, "warning: DTD System ID starts with \"-\";"
+			        " did you forget the name argument?\n");
+	    print_bit(p, &p->xbit);
+	    return 1;
+	}
+    }
+
     if(enc_name)
     {
 	encoding = FindEncoding(enc_name);
@@ -331,7 +436,7 @@ int main(int argc, char **argv)
 	    return 1;
 	}
     }
-    else if(strict_xml)
+    else if(strict_xml || canonical_output)
 	encoding = CE_UTF_8;
     else
 	encoding = source->entity->encoding;
@@ -596,37 +701,58 @@ void print_bit(Parser p, XBit bit)
 	    print_ns_attrs(bit->ns_dict, bit->nsc);
 	    if(bit->type == XBIT_start)
 		Printf(">");
-	    else if(canonical_output)
+	    else if(canonical_output && output_format < o_diff)
 		Printf("></%S>", bit->element_definition->name);
+	    else if(output_format == o_diff)
+		Printf("></%S>", bit->element_definition->name);
+	    else if(output_format > o_diff)
+		Printf(">\n</%S>", bit->element_definition->name);
 	    else
 		Printf("/>");
+	    if(output_format == o_diff2)
+		Printf("\n");
 	    break;
 	case XBIT_end:
 	    Printf("</%S>", bit->element_definition->name);
+	    if(output_format == o_diff2)
+		Printf("\n");
 	    break;
 	case XBIT_pi:
 	    Printf("<?%S %S%s", 
 		   bit->pi_name, bit->pi_chars, nsgml ? ">" : "?>");
-	    if(p->state <= PS_prolog2 && !canonical_output)
+	    if((p->state <= PS_prolog2 && !canonical_output) ||
+	       output_format == o_diff2)
 		Printf("\n");
 	    break;
 	case XBIT_cdsect:
 	    if(canonical_output)
 		/* Print CDATA sections as plain PCDATA in canonical XML */
-		print_text(bit->cdsect_chars);
+		print_text(bit->cdsect_chars, 0);
 	    else
 		Printf("<![CDATA[%S]]>", bit->cdsect_chars);
+	    if(output_format == o_diff2)
+		Printf("\n");
 	    break;
 	case XBIT_pcdata:
-	    if(output_format != o_can3 || !bit->pcdata_ignorable_whitespace)
-		print_text(bit->pcdata_chars);
+	    if(output_format == o_diff2)
+	    {
+		if(bit->pcdata_chars[0] == '\n')
+		    /* we have already printed a linefeed */
+		    print_text(bit->pcdata_chars+1, 0);
+		else
+		    print_text(bit->pcdata_chars, 0);
+		if(bit->pcdata_chars[Strlen(bit->pcdata_chars) - 1] != '\n')
+		    Printf("\n");
+	    }
+	    else if(output_format != o_can3 || !bit->pcdata_ignorable_whitespace)
+		print_text(bit->pcdata_chars, 0);
 	    break;
 	case XBIT_comment:
 	    if(canonical_output)
 		/* no comments in canonical XML */
 		break;
 	    Printf("<!--%S-->", bit->comment_chars);
-	    if(p->state <= PS_prolog2)
+	    if(p->state <= PS_prolog2 || output_format == o_diff2)
 		Printf("\n");
 	    break;
 	default:
@@ -672,7 +798,7 @@ void print_attrs(ElementDefinition e, Attribute a)
 		   aa[i]->definition->local);
 	else
 	    Printf(" %S=\"", aa[i]->definition->name);
-	print_text(aa[i]->value);
+	print_text(aa[i]->value, 1);
 	Printf("\"");
     }
 
@@ -709,7 +835,7 @@ void dtd_cb2(XBit bit, void *arg)
     VectorPush(dtd_bits, copy);
 }
 	
-void print_text(Char *text)
+void print_text(Char *text, int is_attr)
 {
     Char *pc, *last;
     
@@ -723,20 +849,31 @@ void print_text(Char *text)
     {
 	int c = *pc, type = 0;
 	
+	if(c >= 0xd800 && c <= 0xdbff)
+	{
+	    int d = *++pc;
+	    assert(d >= 0xdc00 && d <= 0xdfff);
+	    c = 0x10000 + ((c - 0xd800) << 10) + (d - 0xdc00);
+	}
+
 	if(c == '&' || c == '<' || c == '>' || c == '"' || 
+	   c == 0x0d ||
 	   (c > 127 && !printable(c)))
 	    type = 1;
-	else if(c == 9 || c == 10 || c == 13)
+	else if(c == 9 || c == 10)
 	    type = 2;
-	else if(c < 0x20 || (c >= 0x7f && c < 0xa0))
+	else if(c < 0x20 || (c >= 0x7f && c < 0xa0) ||
+		c == 0x85 || c == 0x2028)
 	    type = 3;
 
 	if(type == 1 ||
-	   (canonical_output && output_format != o_diff && type == 2) ||
+	   (canonical_output && output_format < o_diff && type == 2) ||
+	   (is_attr && type == 2) ||
 	   (xml_version > XV_1_0 && type == 3))
 	{
-	    if(pc > last)
-		Printf("%.*S", pc - last, last);
+	    Char *end = (c > 0xffff ? pc-1 : pc); /* if it's a surrogate pair, before the first  */
+	    if(end > last)
+		Printf("%.*S", end - last, last);
 	    print_special(c);
 	    last = pc+1;
 	}
@@ -768,6 +905,11 @@ int printable(int c)
     case CE_ISO_8859_7:
     case CE_ISO_8859_8:
     case CE_ISO_8859_9:
+    case CE_ISO_8859_10:
+    case CE_ISO_8859_11:
+    case CE_ISO_8859_13:
+    case CE_ISO_8859_14:
+    case CE_ISO_8859_15:
 	case CE_CP_1252:
 	tablenum = (encoding - CE_ISO_8859_2);
 	return c <= iso_max_val[tablenum] && unicode_to_iso[tablenum][c] != '?';
@@ -1000,3 +1142,12 @@ static const char8 *minimal_uri(const char8 *uri, const char8 *base)
 
     return u+1;
 }
+
+#ifdef TIME_LIMIT
+void time_exceeded(int sig)
+{
+    fprintf(stderr, "CPU time limit (%d seconds) exceeded, sorry\n", 
+	    time_limit);
+    exit(1);
+}
+#endif

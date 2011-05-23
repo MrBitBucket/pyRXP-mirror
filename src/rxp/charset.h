@@ -36,6 +36,8 @@ enum character_encoding {
 
     CE_ISO_8859_2, CE_ISO_8859_3, CE_ISO_8859_4, CE_ISO_8859_5,
     CE_ISO_8859_6, CE_ISO_8859_7, CE_ISO_8859_8, CE_ISO_8859_9,
+    CE_ISO_8859_10, CE_ISO_8859_11, CE_ISO_8859_12_XXX, CE_ISO_8859_13,
+    CE_ISO_8859_14, CE_ISO_8859_15, 
 	CE_CP_1252,
 
     CE_UTF_16B, CE_UTF_16L, CE_ISO_10646_UCS_2B, CE_ISO_10646_UCS_2L, 
@@ -60,7 +62,7 @@ STD_API CharacterEncoding FindEncoding(char8 *name);
 
 /* Translation tables for Latin-N and similar - do this right sometime! XXX */
 
-#define NISO 9
+#define NISO 15
 
 extern STD_API int iso_to_unicode[NISO][256];
 extern STD_API int iso_max_val[NISO];

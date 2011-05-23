@@ -488,10 +488,11 @@ static InputSource special_opener(Entity ent, void *arg)
 
 static void CloseXMLDocument(Parser p)
 {
+    Entity ent = p->document_entity;
     FreeNamespaceUniverse(p->dtd->namespace_universe);
     FreeDtd(p->dtd);
-    FreeEntity(p->document_entity);
-    Free(p);
+    FreeParser(p);
+    FreeEntity(ent);
 }
 
 static int SkipElement(XBit bit, Parser p)

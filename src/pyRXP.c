@@ -21,7 +21,7 @@
 #include "stdio16.h"
 #include "version.h"
 #include "namespaces.h"
-#define VERSION "1.15"
+#define VERSION "1.16"
 #define MAX_DEPTH 256
 #if PY_VERSION_HEX < 0x02050000
 #	define Py_ssize_t int
@@ -264,7 +264,15 @@ The python module exports the following\n\
             is only relevant with XML 1.1 documents.\n\
         XML11CheckExists = 0\n\
             Controls whether unknown characters are present. It is only effective\n\
-            when XML11CheckNF is set and the document is XML 1.1.\n"
+            when XML11CheckNF is set and the document is XML 1.1.\n\
+        XMLIDs = 0\n\
+            Check for xml:id attributes\n\
+        XMLIDCheckUnique = 0\n\
+            Ensure xml:id attributes are unique.\n"
+"        Pre105Chars = 1\n\
+            use pre XML 1.0 fifth edition charset\n\
+        Pre105VersionCheck = 1\n\
+            if 1 force unrecognized XML 1.x versions to 1.0\n"
 #if	CHAR_SIZE==16
 "        ReturnUTF8 = 0\n\
             Return UTF8 encoded strings rather than the default unicode\n"
@@ -311,6 +319,11 @@ static struct {char* k;long v;} flag_vals[]={
 	{"XML11Syntax",0},
 	{"XML11CheckNF",0},
 	{"XML11CheckExists",0},
+	{"XMLID",0},
+	{"XMLIDCheckUnique",0},
+	{"Pre105Chars",1},
+	{"Pre105VersionCheck",1},
+
 	{"ReturnList",0},
 	{"ExpandEmpty",0},
 	{"MakeMutableTree",0},
@@ -320,7 +333,7 @@ static struct {char* k;long v;} flag_vals[]={
 	{"ReturnUTF8",0},
 #endif
 	{0}};
-#define LASTRXPFLAG XML11CheckExists
+#define LASTRXPFLAG Pre105VersionCheck
 #define ReturnList (ParserFlag)(1+(int)LASTRXPFLAG)
 #define ExpandEmpty (ParserFlag)(1+(int)ReturnList)
 #define MakeMutableTree (ParserFlag)(1+(int)ExpandEmpty)

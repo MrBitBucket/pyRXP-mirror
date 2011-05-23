@@ -9,11 +9,13 @@
 
 static void init_xml_chartypes(void);
 static void init_xml_chartypes_11(void);
+static void init_xml_chartypes_105(void);
 
 unsigned char xml_char_map[1 << CHAR_SIZE];
 #if CHAR_SIZE == 16
 /* we always use the 1.0 map in 8-bit mode */
 unsigned char xml_char_map_11[1 << CHAR_SIZE];
+unsigned char xml_char_map_105[1 << CHAR_SIZE];
 #endif
 
 int init_ctype16(void)
@@ -24,6 +26,7 @@ int init_ctype16(void)
     {
 	init_xml_chartypes();
 	init_xml_chartypes_11();
+	init_xml_chartypes_105();
 	init_done = 1;
     }
 
@@ -600,3 +603,21 @@ static void init_xml_chartypes_11(void)
     
 #endif
 }
+
+static void init_xml_chartypes_105(void)
+{
+#if CHAR_SIZE == 16
+
+    int i;
+
+    for(i = 0; i < 1 << CHAR_SIZE; i++)
+	xml_char_map_105[i] = xml_char_map_11[i];
+
+    /* DEL and the C1 controls don't have to be escaped in 1.0 5e */
+
+    for(i=0x7f; i<0xa0; i++)
+	xml_char_map_105[i] |= xml_legal;
+
+#endif
+}
+

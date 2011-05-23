@@ -201,6 +201,11 @@ int SourceTell(InputSource s)
     case CE_ISO_8859_7:
     case CE_ISO_8859_8:
     case CE_ISO_8859_9:
+    case CE_ISO_8859_10:
+    case CE_ISO_8859_11:
+    case CE_ISO_8859_13:
+    case CE_ISO_8859_14:
+    case CE_ISO_8859_15:
 	case CE_CP_1252:
     case CE_unspecified_ascii_superset:
 	return s->bytes_before_current_line + s->next;
@@ -710,6 +715,11 @@ static void external_reader(InputSource s)
     case CE_ISO_8859_7:
     case CE_ISO_8859_8:
     case CE_ISO_8859_9:
+    case CE_ISO_8859_10:
+    case CE_ISO_8859_11:
+    case CE_ISO_8859_13:
+    case CE_ISO_8859_14:
+    case CE_ISO_8859_15:
 	case CE_CP_1252:
 	trans = translate_latin;
 	break;
@@ -733,7 +743,10 @@ static void external_reader(InputSource s)
 	/* There are never more characters than bytes in the input */
 	if(s->line_alloc < s->line_length + (s->insize - s->nextin))
 	{
-	    s->line_alloc = s->line_length + (s->insize - s->nextin);
+	    if(s->line_alloc == 0)
+		s->line_alloc = 1024;
+	    while(s->line_alloc < s->line_length + (s->insize - s->nextin))
+		s->line_alloc *= 2;
 	    s->line = Realloc(s->line, s->line_alloc * sizeof(Char));
 	}
 

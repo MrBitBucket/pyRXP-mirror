@@ -12,11 +12,11 @@
 extern STD_API int init_url(void);
 extern STD_API void deinit_url(void);
 
-extern STD_API char8 * EXPRT 
+extern STD_API char8 *
     url_merge(const char8 *url, const char8 *base,
 	      char8 **scheme, char8 **host, int *port, char8 **path);
 extern STD_API FILE16 *url_open(const char8 *url, const char8 *base, 
-			    const char8 *type, char8 **merged_url);
-extern STD_API char8 *EXPRT default_base_url(void);
+			        const char8 *type, char8 **merged_url);
+extern STD_API char8 *default_base_url(void);
 
 #endif

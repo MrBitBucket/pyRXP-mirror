@@ -62,6 +62,7 @@ static void free_headers(struct http_headers *hs);
 
 static int proxy_port;
 static char *proxy_host = 0;
+static char *user_agent = "RXP/1.5.0";
 
 int init_http(void)
 {
@@ -117,6 +118,11 @@ void deinit_http(void)
 
     if(proxy_host)
 	Free(proxy_host);
+}
+
+void http_set_user_agent(const char *agent)
+{
+    user_agent = strdup(agent);
 }
 
 /* Open an http URL */
@@ -197,7 +203,7 @@ FILE16 *http_open(const char *url,
     memset(&addr, 0, sizeof(addr));
     addr.sin_family = AF_INET;
     /* If we were really enthusiastic, we would try all the host's addresses */
-    memcpy(&addr.sin_addr, hostent->h_addr, hostent->h_length);
+    memcpy(&addr.sin_addr, hostent->h_addr_list[0], hostent->h_length);
     addr.sin_port = htons((unsigned short)server_port);
 
     /* Connect */
@@ -232,9 +238,11 @@ FILE16 *http_open(const char *url,
 	    request_uri);
     Fprintf(f16, "Accept: text/xml, application/xml, */*\015\012");
     if(port != -1)
-	Fprintf(f16, "Host: %s:%d\015\012\015\012", host, port);
+	Fprintf(f16, "Host: %s:%d\015\012", host, port);
     else
-	Fprintf(f16, "Host: %s\015\012\015\012", host);
+	Fprintf(f16, "Host: %s\015\012", host);
+    Fprintf(f16, "User-Agent: %s\015\012", user_agent);
+    Fprintf(f16, "\015\012");
 
     if(Ferror(f16))
     {
@@ -311,7 +319,7 @@ FILE16 *http_open(const char *url,
 	    if(strcmp8(hs->header[i]->name, "Location") == 0)
 	    {
 		Fclose(f16);
-		f16 = url_open(hs->header[i]->value, 0, type, &final_url);
+		f16 = url_open(hs->header[i]->value, url, type, &final_url);
 		if(!final_url)
 		    final_url = strdup8(hs->header[i]->value);
 		if(redirected_url)

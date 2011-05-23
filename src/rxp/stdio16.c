@@ -56,6 +56,8 @@
 
 #define BufferSize 4096
 
+static char8 null = 0;
+
 typedef int ReadProc(FILE16 *file, unsigned char *buf, int max_count);
 typedef int WriteProc(FILE16 *file, const unsigned char *buf, int count);
 typedef int SeekProc(FILE16 *file, long offset, int ptrname);
@@ -106,6 +108,12 @@ static int StringWriteTrunc(FILE16 *file, const unsigned char *buf, int count);
 static int StringSeek(FILE16 *file, long offset, int ptrname);
 static int StringClose(FILE16 *file);
 static int StringFlush(FILE16 *file);
+
+static int MStringRead(FILE16 *file, unsigned char *buf, int max_count);
+static int MStringWrite(FILE16 *file, const unsigned char *buf, int count);
+static int MStringSeek(FILE16 *file, long offset, int ptrname);
+static int MStringClose(FILE16 *file);
+static int MStringFlush(FILE16 *file);
 
 #if defined(WIN32) && ! defined(__CYGWIN__)
 #ifdef SOCKETS_IMPLEMENTED
@@ -204,6 +212,11 @@ static int ConvertASCII(const char8 *buf, int count, FILE16 *file)
     case CE_ISO_8859_7:
     case CE_ISO_8859_8:
     case CE_ISO_8859_9:
+    case CE_ISO_8859_10:
+    case CE_ISO_8859_11:
+    case CE_ISO_8859_13:
+    case CE_ISO_8859_14:
+    case CE_ISO_8859_15:
 	case CE_CP_1252:
     case CE_unspecified_ascii_superset:
 	if(file->flags & FILE16_crlf)
@@ -312,6 +325,11 @@ static int ConvertUTF16(const char16 *buf, int count, FILE16 *file)
     case CE_ISO_8859_7:
     case CE_ISO_8859_8:
     case CE_ISO_8859_9:
+    case CE_ISO_8859_10:
+    case CE_ISO_8859_11:
+    case CE_ISO_8859_13:
+    case CE_ISO_8859_14:
+    case CE_ISO_8859_15:
 	case CE_CP_1252:
 	tablenum = (file->enc - CE_ISO_8859_2);
 	max = iso_max_val[tablenum];
@@ -709,7 +727,7 @@ int Vfprintf(FILE16 *file, const char *format, va_list args)
 	case 'l':
 	    l = 1;
 	    c = *format++;
-#ifdef HAVE_LONG_LONG
+#ifdef HAVE_LONG_LONG_INT
 	    if(c == 'l')
 	    {
 		l = 0;
@@ -757,7 +775,7 @@ int Vfprintf(FILE16 *file, const char *format, va_list args)
 		sprintf(val, fmt, va_arg(args, int)); /* promoted to int */
 	    else if(l)
 		sprintf(val, fmt, va_arg(args, long));
-#if	HAVE_LONG_LONG
+#ifdef	HAVE_LONG_LONG_INT
 	    else if(ll)
 		sprintf(val, fmt, va_arg(args, PY_LONG_LONG));
 #endif
@@ -1151,8 +1169,6 @@ static int StringSeek(FILE16 *file, long offset, int ptrname)
 
 static int StringClose(FILE16 *file)
 {
-    static char8 null = 0;
-
     if(file->flags & FILE16_write)
 	ConvertASCII(&null, 1, file); /* null terminate */
 
@@ -1164,6 +1180,115 @@ static int StringClose(FILE16 *file)
 
 static int StringFlush(FILE16 *file)
 {
+    if(file->flags & FILE16_write)
+    {
+	/* null terminate, but leave position unchanged */
+	int save = file->handle2;
+	ConvertASCII(&null, 1, file);
+	file->handle2 = save;
+    }
+
+    return 0;
+}
+
+FILE16 *MakeStringFILE16(const char *type)
+{
+    FILE16 *file;
+
+    if(!(file = MakeFILE16(type)))
+	return 0;
+
+    file->read = MStringRead;
+    file->write = MStringWrite;
+    file->seek = MStringSeek;
+    file->close = MStringClose;
+    file->flush = MStringFlush;
+
+    file->handle = 0;
+    file->handle2 = 0;
+    file->handle3 = 0;
+
+    return file;
+}
+
+void *StringFILE16String(FILE16 *file)
+{
+    return file->handle;
+}
+
+int StringFILE16StringLength(FILE16 *file)
+{
+    return file->handle2;
+}
+
+static int MStringRead(FILE16 *file, unsigned char *buf, int max_count)
+{
+    return 0;
+}
+
+static int MStringWrite(FILE16 *file, const unsigned char *buf, int count)
+{
+    char *p;
+
+    if(file->handle2 + count > file->handle3)
+    {
+	int newsize = (file->handle3 == 0 ? 32 : file->handle3);
+	
+	while(file->handle2 + count > newsize)
+	    newsize *= 2;
+
+	file->handle = Realloc(file->handle, newsize);
+	if(!file->handle)
+	    return -1;
+	file->handle3 = newsize;
+    }
+
+    p = (char *)file->handle + file->handle2;
+    memcpy(p, buf, count);
+    file->handle2 += count;
+
+    return 0;
+}
+
+static int MStringSeek(FILE16 *file, long offset, int ptrname)
+{
+    switch(ptrname)
+    {
+    case SEEK_CUR:
+	offset = file->handle2 + offset;
+	break;
+    case SEEK_END:
+	if(file->handle3 < 0)
+	    return -1;
+	offset = file->handle3 + offset;
+	break;
+    }
+
+    if(file->handle3 >= 0 && offset > file->handle3)
+	return -1;
+
+    file->handle2 = offset;
+
+    return 0;
+}
+
+static int MStringClose(FILE16 *file)
+{
+    Free(file->handle);
+
+    return 0;
+}
+
+static int MStringFlush(FILE16 *file)
+{
+    if(file->flags & FILE16_write)
+    {
+	/* null terminate, but leave position unchanged */
+	int save = file->handle2;
+	ConvertASCII(&null, 1, file);
+	file->handle2 = save;
+    }
+
     return 0;
 }
 

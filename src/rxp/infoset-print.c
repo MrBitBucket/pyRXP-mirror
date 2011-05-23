@@ -549,7 +549,8 @@ static void attribute(FILE16 *f, int level, Dtd dtd, Attribute a,
     simple(f, level+1, "specified", a->specified ? "true" : "false");
 
     simple(f, level+1, "attributeType",
-	   a->definition->declared ? 
+	   /* accept undeclared ID type to make xml:id work */
+	   (a->definition->declared || a->definition->type != AT_cdata) ? 
 	     AttributeTypeName[a->definition->type] : 0);
 
     switch(a->definition->type)

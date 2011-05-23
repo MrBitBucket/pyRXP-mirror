@@ -189,10 +189,13 @@ int strcmp16(const char16 *s1, const char16 *s2)
 	c2 = *s2++;
 	if(c1 == 0 && c2 == 0)
 	    return 0;
+#if 0
+	/* char16 is unsigned, so we don't need this */
 	if(c1 == 0)
 	    return -1;
 	if(c2 == 0)
 	    return 1;
+#endif
 	if(c1 < c2)
 	    return -1;
 	if(c1 > c2)
@@ -210,10 +213,13 @@ int strncmp16(const char16 *s1, const char16 *s2, size_t n)
 	c2 = *s2++;
 	if(c1 == 0 && c2 == 0)
 	    return 0;
+#if 0
+	/* char16 is unsigned, so we don't need this */
 	if(c1 == 0)
 	    return -1;
 	if(c2 == 0)
 	    return 1;
+#endif
 	if(c1 < c2)
 	    return -1;
 	if(c1 > c2)
@@ -235,10 +241,13 @@ int strcasecmp16(const char16 *s1, const char16 *s2)
 	c2 = Toupper(*s2++);
 	if(c1 == 0 && c2 == 0)
 	    return 0;
+#if 0
+	/* char16 is unsigned, so we don't need this */
 	if(c1 == 0)
 	    return -1;
 	if(c2 == 0)
 	    return 1;
+#endif
 	if(c1 < c2)
 	    return -1;
 	if(c1 > c2)
@@ -256,10 +265,13 @@ int strncasecmp16(const char16 *s1, const char16 *s2, size_t n)
 	c2 = Toupper(*s2++);
 	if(c1 == 0 && c2 == 0)
 	    return 0;
+#if 0
+	/* char16 is unsigned, so we don't need this */
 	if(c1 == 0)
 	    return -1;
 	if(c2 == 0)
 	    return 1;
+#endif
 	if(c1 < c2)
 	    return -1;
 	if(c1 > c2)
