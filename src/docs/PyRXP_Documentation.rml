@@ -26,9 +26,9 @@
 
         <setFont name="Times-Roman" size="10"/>
         <drawString x="72" y="110">ReportLab</drawString>
-        <drawString x="72" y="98">165 The Broadway</drawString>
+        <drawString x="72" y="98">Thornton House, Thornton Road</drawString>
         <drawString x="72" y="86">Wimbledon</drawString>
-        <drawString x="72" y="74">London, UK SW19 1NE</drawString>
+        <drawString x="72" y="74">London SW19 4NG, UK</drawString>
 
     </pageGraphics>
     <frame id="first" x1="72" y1="72" width="451" height="698"/>
