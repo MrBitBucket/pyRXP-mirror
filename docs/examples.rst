@@ -1,0 +1,129 @@
+4. The examples and utilities
+=============================
+
+The zip file of examples contains a couple of validatable documents in
+xml, the samples used in this manual, and two utility modules: one for
+benchmarking and one for navigating through tuple trees.
+
+4.1 Benchmarking
+----------------
+
+*benchmarks.py* is a script aiming to compare performance of various
+parsers. We include it to make our results reproducable. It is not a
+work of art and if you think you can make it fairer or better, tell us
+how! Here's an example run.
+
+::
+
+    C:\code\rlextra\radxml\samples>benchmarks.py
+
+        Interactive benchmark suite for Python XML parsers.
+        Parsers available:
+
+    opened sample XML file 444220 bytes long
+            1.  pyRXP
+            2.  rparsexml
+            3.  minidom
+            4.  msxml30
+            5.  4dom
+            6.  cdomlette
+
+    Shall we do memory tests?  i.e. you look at Task Manager? y/n  y
+    Test number (or x to exit)>1
+    testing pyRXP
+    Pre-parsing: please input python process memory in kb >2904
+    Post-parsing: please input python process memory in kb >7180
+    12618 tags, 8157 attributes
+    pyRXP: init 0.0315, parse 0.3579, traverse 0.1594, mem used 4276kb, mem factor 9.86
+
+Instead of the traditional example (hamlet), we took as our example an
+early version of the Report Markup Language user guide, which is about
+half a megabyte. Hamlet's XML has almost no attributes; ours contains
+lots of attributes, many of which will need conversion to numbers one
+day, and so it provides a more rounded basis for benchmarks
+
+We measure several factors. First there is speed. Obviously this depends
+on your PC. The script exits after each test so you get a clean process.
+We measure (a) the time to load the parser and any code it needs into
+memory (important if doing CGI); (b) time to produce the tree, using
+whatever the parser natively produces; and (c) time to traverse the tree
+counting the number of tags and attributes. Note, (c) might be important
+with a 'very lazy' parser which searched the source text on every
+request. Also, later on we will be able to look at the difference
+between traversing a raw tuple tree and some objects with friendlier
+syntax.
+
+Next is memory. Actually you have to measure that! If anyone can give us
+the API calls on Windows and other platforms to find out the current
+process size, we'd be grateful! What we are interested in is how big the
+structure is in memory. The above shows that the memory allocated is
+9.86 times as big as the original XML text. That sounds a lot, but it's
+actually much less than most DOM parsers.
+
+By contrast, here's the result for the *minidom* parser included in the
+official Python distro:
+
+::
+
+    minidom: init 0.3039, parse 12.6435, traverse 0.0000, mem used 29136kb, mem factor 67.16
+
+Even though minidom uses pyexpat (which is in C) to parse the XML, it's
+36 times slower and uses 7 times more memory. And of course it does not
+validate.
+
+4.2 xmlutils and the TagWrapper
+-------------------------------
+
+Finally, we've included a 'tag wrapper' class which makes it easy to
+navigate around the tuple tree. This is randomly selected from many such
+modules we have used in various projects; the next task for us is to
+pick ONE and publish it! Essentially, it uses lazy evaluation to try and
+figure out which part of the XML you want. If you ask for 'tag.spam', it
+will check if (a) there is an attribute called spam, or (b) if there is
+a child tag whose tag name is 'spam'. And you can iterate over child
+nodes as a sequence. And, the str() method of a tag which just contains
+text is just the text. The snippets below should make it clear what we
+are doing.
+
+::
+
+    >>> tree = pyRXP.Parser().parse(srcText)
+    >>> srcText = open('rml_a.xml').read()
+    >>> tree = pyRXP.Parser().parse(srcText)
+    >>> import xmlutils
+    >>> tw = xmlutils.TagWrapper(tree)
+    >>> tw
+    TagWrapper<document>
+    >>> tw.filename
+    'RML_UserGuide_1_0.pdf'
+    >>> len(tw.story)  # how many tags in the story?
+    1566
+    >>> tw.template.pageSize
+    '(595, 842)'
+
+    >>> for elem in tw.story:
+    ...     if elem.tagName == 'h1':
+    ...         print elem
+    ...
+     RML User Guide
+
+    Part I - The Basics
+    Part II - Advanced Features
+    Part III - Tables
+    Appendix A - Colors recognized by RML
+    Appendix B - Glossary of terms and abbreviations
+    Appendix C - Letters used by the Greek tag
+    Appendix D - Command reference
+    Generic Flowables (Story Elements)
+    Graphical Drawing Operations
+    Graphical State Change Operations
+    Style Elements
+    Page Layout Tags
+    Special Tags
+    >>>
+
+We are NOT saying this is a particularly good or complete wrapper; but
+we do intend to standardize on one such wrapper module in the near
+future, because it makes access to XML information much more 'pythonic'
+and pleasant. It could be used with tuple trees generated by any parser.
+Please let us know if you have any suggestions on how it should behave.
