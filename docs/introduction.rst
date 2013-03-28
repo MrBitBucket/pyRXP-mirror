@@ -14,15 +14,30 @@ basics (what a DTD is, some of the syntax etc.)
 ------------------
 
 PyRXP is a Python language wrapper around the excellent RXP parser. RXP
-is a validating namespace-aware XML parser written in C. Together, they
-provide the fastest XML-parsing framework available to Python
-programmers today.
+is a validating namespace-aware XML parser written in C.  It was released
+by ReportLab in 2003, at a time when the available XML parsing tools in
+Python were, frankly, a mess.  At the time it was the fastest XML-parsing 
+framework available to Python programmers, with the benefit of validation.
+Please bear in mind that much of the documentation was written at that time.
 
 RXP was written by Richard Tobin at the Language Technology Group, Human
 Communication Research Centre, University of Edinburgh. PyRXP was
 written by Robin Becker at ReportLab.
 
-This documentation describes pyRXP-1.08 being used with RXP 1.4.0, as
+ReportLab uses pyRXP to parse its own Report Markup Language formatting product,
+and for all inbound XML within our document generation solutions.  Having a
+validating XML parser is a huge benefit, because it stops a large proportion
+of bad input from other systems early on, and forces producers to get things
+right, rather than leaning on us to write ad-hoc cleanups for other peoples'
+poor data.
+
+The code is extremely mature and stable.  
+
+In recent years, libxml2 and lxml have become popular and offer much of the 
+same functionality, under less restrictive licenses; these may also be a
+valid choice for your project.
+
+This documentation describes pyRXP-1.16 being used with RXP 1.4.0, as
 well as ReportLab's emerging XML toolkit which uses it.
 
 1.3 License terms
@@ -37,15 +52,15 @@ FreeBSD license for our PDF Toolkit, which means you CAN use it in
 commercial products.
 
 We licensed RXP for our commercial products, but are releasing pyRXP
-under the GPL. If you want to use pyRXP for a commercial product, you
+under the GPL. (We did try to persuade Edinburgh to release under a
+Python style license, but they declined; otherwise pyRXP might have
+become the Python standard.)
+
+If you want to use pyRXP for a commercial product, you
 need to purchase a license. We are authorised resellers for RXP and can
 sell you a commercial license to use it in your own products. PyRXP is
-ideal for embedded use being lightweight, fast and pythonic.
+ideal for embedded use being lightweight, fast and pythonic. 
 
-However, the XML framework ReportLab is using and building will be under
-our own license. It predates pyRXP and can be made to work off any XML
-parser (such as expat), and we hope to produce something which can go
-into the Python distribution one day.
 
 1.4 Why another XML toolkit?
 ----------------------------
