@@ -15,26 +15,25 @@ how! Here's an example run.
 
 ::
 
-    C:\code\rlextra\radxml\samples>benchmarks.py
-
-        Interactive benchmark suite for Python XML parsers.
-        Parsers available:
-
-    opened sample XML file 444220 bytes long
-            1.  pyRXP
-            2.  rparsexml
-            3.  minidom
-            4.  msxml30
-            5.  4dom
-            6.  cdomlette
-
-    Shall we do memory tests?  i.e. you look at Task Manager? y/n  y
-    Test number (or x to exit)>1
+    > python benchmarks.py
+    Interactive benchmark suite for Python XML tree-parsers.
+    Using sample XML file 444220 bytes long
+    Parsers available:
+        1.  pyRXP
+        2.  pyRXP_nonvalidating
+        3.  rparsexml
+        4.  expat
+        5.  minidom
+        6.  msxml30
+        7.  4dom
+        8.  cdomlette
+    Parser number (or x to exit) > 1
+    Shall we do memory tests?  i.e. you look at Task Manager? y/n > y
     testing pyRXP
-    Pre-parsing: please input python process memory in kb >2904
-    Post-parsing: please input python process memory in kb >7180
-    12618 tags, 8157 attributes
-    pyRXP: init 0.0315, parse 0.3579, traverse 0.1594, mem used 4276kb, mem factor 9.86
+    Pre-parsing: please input python process memory in kb > 5104
+    Post-parsing: please input python process memory in kb > 10752
+    counted 12618 tags, 8157 attributes
+    pyRXP: init 0.0000, parse 0.0300, traverse 0.0200, mem used 5648kb, mem factor 13.02
 
 Instead of the traditional example (hamlet), we took as our example an
 early version of the Report Markup Language user guide, which is about
@@ -65,10 +64,10 @@ official Python distro:
 
 ::
 
-    minidom: init 0.3039, parse 12.6435, traverse 0.0000, mem used 29136kb, mem factor 67.16
+    minidom: init 0.0100, parse 0.2600, traverse 0.0000, mem used 47320kb, mem factor 109.08
 
 Even though minidom uses pyexpat (which is in C) to parse the XML, it's
-36 times slower and uses 7 times more memory. And of course it does not
+several times slower and uses 8 times more memory. And of course it does not
 validate.
 
 4.2 xmlutils and the TagWrapper
@@ -87,7 +86,6 @@ are doing.
 
 ::
 
-    >>> tree = pyRXP.Parser().parse(srcText)
     >>> srcText = open('rml_a.xml').read()
     >>> tree = pyRXP.Parser().parse(srcText)
     >>> import xmlutils

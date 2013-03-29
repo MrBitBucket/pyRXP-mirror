@@ -5,87 +5,70 @@
 ----------------------------------
 
 3.1.1 The Parse method and callable instances of the parser
------------------------------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Firstly you have to import the pyRXP module (using Python's import
 statement). While we are here, pyRXP has a couple of attributes that are
-worth knowing about: version gives you a string with the version number
-of the pyRXP module itself, and RXPVersion gives you string with the
+worth knowing about: ``version`` gives you a string with the version number
+of the pyRXP module itself, and ``RXPVersion`` gives you string with the
 version information for the rxp library embedded in the module.
 
 ::
 
-    C:\Python22>python
-    Python 2.2.1 (#34, Apr  9 2002, 19:34:33) [MSC 32 bit (Intel)] on win32
-    Type "help", "copyright", "credits" or "license" for more information.
     >>> import pyRXP
     >>> pyRXP.version
-    '1.08'
+    '1.16'
     >>> pyRXP.RXPVersion
-    'RXP 1.4.0 Copyright Richard Tobin, LTG, HCRC, University of Edinburgh'
+    'RXP 1.5.0 Copyright Richard Tobin, LTG, HCRC, University of Edinburgh'
 
 Once you have imported pyRXP, you can instantiate a parser instance
 using the Parser class.
 
 ::
 
-    >>>p=pyRXP.Parser()
+    >>>rxp=pyRXP.Parser()
 
-This by itself isn't very useful. But it does allow us to create a
-single parser which we can reuse many times. It also allows us to type a
-short variable name rather than 'pyRXP.Parser' every time we need to use
-it. p is now an instance of Parser - Parser is a constructer that
-creates an object with its own methods and attributes. When you create a
-parser like this you can also set multiple flags at the same time. This
-can save you from having to set them separately, or having to set them
-all repeatedly each time you need to do a parse.
 
-To parse some XML, you use the parse method. The simplest way of doing
-this is to feed it a string. You could create the string beforehand, or
-read it from disk (using something like s=open('filename', 'r').read()).
-PyRXP isn't designed to allow you to read the source directly from disk
-without an intermediate step like this.
-
-As well as exposing this method, instances of Parser are callable. This
-means that you can do this:
+To parse some XML, you use the ``parse`` method, passing a string as the first argument and
+receiving the parsed Tuple Tree as a result:
 
 ::
 
-    >>> p=pyRXP.Parser()
-    >>> p('<a>some text</a>')
+    >>> rxp=pyRXP.Parser()
+    >>> rxp.parse('<a>some text</a>')
+    ('a', None, ['some text'], None)
 
-instead of this
+
+As a shortcut, you can call the instance directly:
 
 ::
 
-    >>> p=pyRXP.Parser()
-    >>> p.parse('<a>some text</a>')
+    >>> rxp=pyRXP.Parser()
+    >>> rxp('<a>some text</a>')
+    ('a', None, ['some text'], None)
 
-Both would give you exactly the same result (('a', None, ['some text'],
-None)))
 
-We'll use the second style in this documentation, since it makes the
-examples slightly clearer. Whether you do or not is up to you and your
-programming style.
+__Note__:
+Throughout this documentation, we'll use the explicit call syntax for clarity.
+
+3.1.2 Basic usage
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 We'll start with some very simple examples and leave validation for
 later.
 
 ::
 
-    >>> p.parse('<tag>content</tag>')
+    >>> rxp.parse('<tag>content</tag>')
     ('tag', None, ['content'], None)
 
-This could also be expressed more long-windedly as
-pyRXP.Parser().parse('<tag>content</tag>')
 
 Each element ("tag") in the XML is represented as a tuple of 4 elements:
 
 -  'tag': the tag name (aka element name).
--  None: a dictionary of the tag's attributes (null here since it
+-  None: a dictionary of the tag's attributes (None here since it
    doesn't have any).
--  ['content']: a list of included textual results. This is the contents
-   of the tag.
+-  ['content']: a list of the children elements of the tag.
 -  None: the fourth element is unused by default.
 
 This tree structure is equivalent to the input XML, at least in
@@ -97,14 +80,14 @@ tuples, but they will all use the same structure as this one.
 
 ::
 
-    >>> p.parse('<tag1><tag2>content</tag2></tag1>')
+    >>> rxp.parse('<tag1><tag2>content</tag2></tag1>')
     ('tag1', None, [('tag2', None, ['content'], None)], None)
 
 This may be easier to understand if we lay it out differently:
 
 ::
 
-    >>> p.parse('<tag1><tag2>content</tag2></tag1>')
+    >>> rxp.parse('<tag1><tag2>content</tag2></tag1>')
     ('tag1',
      None,
          [('tag2',
@@ -124,8 +107,8 @@ and it too is closed.
 The XML that is passed to the parser must be balanced. Any opening and
 closing tags must match. They wouldn't be valid XML otherwise.
 
-3.1.2 Empty tags and the ExpandEmpty flag
------------------------------------------
+3.1.3 Empty tags and the ExpandEmpty flag
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Look at the following three examples. The first one is a fairly ordinary
 tag with contents. The second and third can both be considered as empty
@@ -134,13 +117,13 @@ and the other is the singleton form which by definition has no content.
 
 ::
 
-    >>> p.parse('<tag>my contents</tag>')
+    >>> rxp.parse('<tag>my contents</tag>')
     ('tag', None, ['my contents'], None)
 
-    >>> p.parse('<tag></tag>')
+    >>> rxp.parse('<tag></tag>')
     ('tag', None, [], None)
 
-    >>> p.parse('<tag/>')
+    >>> rxp.parse('<tag/>')
     ('tag', None, None, None)
 
 Notice how the contents list is handled differently for the last two
@@ -154,7 +137,7 @@ Another example:
 
 ::
 
-    >>>p.parse('<outerTag><innerTag>bb</innerTag>aaa<singleTag/></outerTag>')
+    >>>rxp.parse('<outerTag><innerTag>bb</innerTag>aaa<singleTag/></outerTag>')
     ('outerTag', None, [('innerTag', None, ['bb'], None), 'aaa', ('singleTag',
     None, None, None)], None)
 
@@ -182,7 +165,7 @@ string 'bb' as its contents, and the singleton singleTag whose contents
 list is replaced by a null.
 
 The way that these empty tags are handled can be changed using the
-ExpandEmpty flag. If ExpandEmpty is set to 0, these singleton forms come
+``ExpandEmpty`` flag. If ``ExpandEmpty`` is set to 0, these singleton forms come
 out as None, as we have seen in the examples above. However, if you set
 it to 1, the empty tags are returned as standard tags of their sort.
 
@@ -194,18 +177,18 @@ Some examples. This is what happens if we accept the default behaviour:
 
 ::
 
-    >>> p.parse('<a>some text</a>')
+    >>> rxp.parse('<a>some text</a>')
     ('a', None, ['some text'], None)
 
 Explicitly setting ExpandEmpty to 1 gives us these:
 
 ::
 
-    >>> p.parse('<a>some text</a>', ExpandEmpty=1)
+    >>> rxp.parse('<a>some text</a>', ExpandEmpty=1)
     ('a', {}, ['some text'], None)
 
 Notice how the None from the first example is being returned as an empty
-dictionary in the second version. ExpandEmpty makes the sure that the
+dictionary in the second version. ``ExpandEmpty`` makes the sure that the
 attribute list is always a dictionary. It also makes sure that a
 self-closed tag returns an empty list.
 
@@ -214,12 +197,12 @@ tag.
 
 ::
 
-    >>> p.parse('<b/>', ExpandEmpty=0)
+    >>> rxp.parse('<b/>', ExpandEmpty=0)
     ('b', None, None, None)
 
 ::
 
-    >>> p.parse('<b/>', ExpandEmpty=1)
+    >>> rxp.parse('<b/>', ExpandEmpty=1)
     ('b', {}, [], None)
 
 Again, notice how the Nones have been expanded.
@@ -229,90 +212,89 @@ which uses nested tags:
 
 ::
 
-    >>> p.parse('<a>some text<b>Hello</b></a>', ExpandEmpty=0)
+    >>> rxp.parse('<a>some text<b>Hello</b></a>', ExpandEmpty=0)
     ('a', None, ['some text', ('b', None, ['Hello'], None)], None)
 
-    >>> p.parse('<a>some text<b>Hello</b></a>', ExpandEmpty=1)
+    >>> rxp.parse('<a>some text<b>Hello</b></a>', ExpandEmpty=1)
     ('a', {}, ['some text', ('b', {}, ['Hello'], None)], None)
 
 ::
 
-    >>> p.parse('<a>some text<b></b></a>', ExpandEmpty=0)
+    >>> rxp.parse('<a>some text<b></b></a>', ExpandEmpty=0)
     ('a', None, ['some text', ('b', None, [], None)], None)
 
-    >>> p.parse('<a>some text<b></b></a>', ExpandEmpty=1)
+    >>> rxp.parse('<a>some text<b></b></a>', ExpandEmpty=1)
     ('a', {}, ['some text', ('b', {}, [], None)], None)
 
 ::
 
-    >>> p.parse('<a>some text<b/></a>', ExpandEmpty=0)
+    >>> rxp.parse('<a>some text<b/></a>', ExpandEmpty=0)
     ('a', None, ['some text', ('b', None, None, None)], None)
 
-    >>> p.parse('<a>some text<b/></a>', ExpandEmpty=1)
+    >>> rxp.parse('<a>some text<b/></a>', ExpandEmpty=1)
     ('a', {}, ['some text', ('b', {}, [], None)], None)
 
-3.1.3 Processing instructions
------------------------------
+3.1.4 Processing instructions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Both the comment and processing instruction tag names are special - you
 can check for them relatively easily. This section processing
 instruction and the next one covers handling comments.
 
 A processing instruction allows developers to place information specific
-to an outside application within the docuent. You can handle it using
-the ReturnProcessingInstruction attribute.
+to an outside application within the document. You can handle it using
+the ``ReturnProcessingInstruction`` attribute.
 
-There is a module global called piTagName (ie you need to do
-'pyRXP.piTagName' rather than refering to an instance like 'p.piTagName'
-which won't work).
+::
+
+    >>> rxp.parse(<a><?works document="hello.doc"?></a>')
+    ('a', None, [], None)
+    >>> #vanishes - like a comment
+    >>> rxp.parse('<a><?works document="hello.doc"?></a>', ReturnProcessingInstructions=1)
+    ('a', None, [('<?', {'name': 'works'}, ['document="hello.doc"'], None)], None)
+    >>>
+
+
+pyRXP uses a module pseudo-constant called ``piTagName`` (it's not an instance
+attribute) to check for processing instructions:
 
 ::
 
     >>> pyRXP.piTagName
     '<?'
 
-::
-
-    >>> p.parse(<a><?works document="hello.doc"?></a>')
-    ('a', None, [], None)
-    >>> #vanishes - like a comment
-    >>> p.parse('<a><?works document="hello.doc"?></a>', ReturnProcessingInstructions=1)
-    ('a', None, [('<?', {'name': 'works'}, ['document="hello.doc"'], None)], None)
-    >>>
-
-You can test against piTagName - but don't try and change it. See the
-section on trying to change commentTagName for an example of what would
+You can test against ``piTagName`` - but don't try and change it. See the
+section on trying to change ``commentTagName`` for an example of what would
 happen.
 
 ::
 
-    >>> p.parse('<a><?works document="hello.doc"?></a>',
+    >>> rxp.parse('<a><?works document="hello.doc"?></a>',
     ... ReturnProcessingInstructions=1)[2][0][0] is pyRXP.piTagName
-    1
-    >>> #identical! (ie same object each time)
+    True
 
 This is a simple test and doesn't even have to process the characters.
 It allows you to process these lists looking for processing instructions
-(or comments if you are testing against commentTagName as show in the
+(or comments if you are testing against ``commentTagName`` as shown in the
 next section)
 
-3.1.4 Handling comments and the srcName attribute
--------------------------------------------------
+3.1.5 Handling comments and the srcName attribute
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-**NB** The way ReturnComments works has changed between versions.
+**NB** The way ``ReturnComments`` works has changed between versions.
 
 By default, PyRXP ignores comments and their contents are lost (this
 behaviour can be changed - see the section of Flags later for details).
 
 ::
 
-    >>> p.parse('<tag><!-- this is a comment about the tag --></tag>')
+    >>> rxp.parse('<tag><!-- this is a comment about the tag --></tag>')
     ('tag', None, [], None)
 
-    >>> p.parse('<!-- this is a comment -->')
+    >>> rxp.parse('<!-- this is a comment -->')
     Traceback (most recent call last):
-      File "<stdin>", line 1, in ?
-    pyRXP.Error: Error: Document ends too soon
+      File "<stdin>", line 1, in <module>
+    pyRXP.error: Error: Document ends too soon
      in unnamed entity at line 1 char 27 of [unknown]
     Document ends too soon
     Parse Failed!
@@ -321,34 +303,30 @@ This causes an error, since the parser sees an empty string which isn't
 valid XML.
 
 It is possible to set pyRXP to not swallow comments using the
-ReturnComments attribute.
+``ReturnComments`` attribute.
 
 ::
 
 
-    >>> p.parse('<tag><!-- this is a comment about the tag --></tag>', ReturnComments=1)
+    >>> rxp.parse('<tag><!-- this is a comment about the tag --></tag>', ReturnComments=1)
     ('tag', None, [('<!--', None, [' this is a comment about the tag '], None)], None)
 
-Using ReturnComments, the comment are returned in the same way as an
+Using ``ReturnComments``, the comment are returned in the same way as an
 ordinary tag, except that the tag has a special name. This special name
-is defined in the module global 'commentTagName'. You can't just do
-p.commentTagName, since it's a module object which isn't related to the
-parser at all.
+is defined in the module pseudo-constant ``commentTagName`` (again, not an instance attribute):
 
 ::
 
-    >>> p.commentTagName
+    >>> rxp.commentTagName
     Traceback (most recent call last):
-      File "<stdin>", line 1, in ?
+      File "<stdin>", line 1, in <module>
     AttributeError: commentTagName
 
     >>> pyRXP.commentTagName
     '<!--'
 
-Don't try to change the commentTagName. Not only would it be of dubious
-value, but it doesn't work. You change the variable in the python
-module, but *not* in the underlying object, as the following example
-shows:
+Please note that changing ``commentTagName`` won't work: what would be changed is simply the
+Python representation, while the underlying C object would remain untouched:
 
 ::
 
@@ -358,7 +336,7 @@ shows:
     >>> pyRXP.commentTagName
     '##'
     >>> #LOOKS LIKE IT WORKS - BUT SEE BELOW FOR WHY IT DOESN'T
-    >>> p.parse('<a><!-- this is another comment comment --></a>', ReturnComments = 1)
+    >>> rxp.parse('<a><!-- this is another comment comment --></a>', ReturnComments = 1)
     >>> # DOESN'T WORK!
     >>> ('a', None, [('<!--', None, [' this is another comment comment '], None)], None)
     >>> #SEE?
@@ -368,17 +346,17 @@ returned a comment:
 
 ::
 
-    >>> p.parse('<a><!-- comment --></a>', ReturnComments=1)
+    >>> rxp.parse('<a><!-- comment --></a>', ReturnComments=1)
     ('a', None, [('<!--', None, [' comment '], None)], None)
-    >>> p.parse('<a><!-- comment --></a>', ReturnComments=1)[2][0][0]
+    >>> rxp.parse('<a><!-- comment --></a>', ReturnComments=1)[2][0][0]
     '<!--'
     >>> #this returns the comment name tag from the tuple tree...
-    >>> p.parse('<a><!-- comment --></a>', ReturnComments=1)[2][0][0] is pyRXP.commentTagName
+    >>> rxp.parse('<a><!-- comment --></a>', ReturnComments=1)[2][0][0] is pyRXP.commentTagName
     1
     >>> #they're identical
     >>> #it's easy to check if it's a special name
 
-Using ReturnComments is useful, but there are circumstances where it
+Using ``ReturnComments`` is useful, but there are circumstances where it
 fails. Comments which are outside the root tag (in the following
 snippet, that means which are outside the tag '<tag/>', ie the last
 element in the line) will still be lost:
@@ -386,33 +364,33 @@ element in the line) will still be lost:
 ::
 
 
-    >>> p.parse('<tag/><!-- this is a comment about the tag -->', ReturnComments=1)
+    >>> rxp.parse('<tag/><!-- this is a comment about the tag -->', ReturnComments=1)
     ('tag', None, None, None)
 
-To get around this, you need to use the ReturnList attribute:
+To get around this, you need to use the ``ReturnList`` attribute:
 
 ::
 
-    >>> p.parse('<tag/><!-- this is a comment about the tag -->', ReturnComments=1, ReturnList=1)
+    >>> rxp.parse('<tag/><!-- this is a comment about the tag -->', ReturnComments=1, ReturnList=1)
     [('tag', None, None, None), ('<!--', None, [' this is a comment about the tag '], None)]
     >>>
 
 Since we've seen a number of errors in the preceding paragraphs, it
-might be a good time to mention the srcName attribute. The Parser has an
-attribute called srcName which is useful when debugging. This is the
+might be a good time to mention the ``srcName`` attribute. The Parser has an
+attribute called ``srcName`` which is useful when debugging. This is the
 name by which pyRXP refers to your code in tracebacks. This can be
 useful - for example, if you have read the XML in from a file, you can
-use the srcName attribute to show the filename to the user. It doesn't
+use the ``srcName`` attribute to show the filename to the user. It doesn't
 get used for anything other than pyRXP Errors - SyntaxErrors and
 IOErrors still won't refer to your XML by name.
 
 ::
 
-    >>> p.srcName = 'mycode'
-    >>> p.parse('<a>aaa</a')
+    >>> rxp.srcName = 'mycode'
+    >>> rxp.parse('<a>aaa</a')
     Traceback (most recent call last):
-      File "<stdin>", line 1, in ?
-    pyRXP.Error: Error: Expected > after name in end tag, bu
+      File "<stdin>", line 1, in <module>
+    pyRXP.error: Error: Expected > after name in end tag, but got <EOE>
      in unnamed entity at line 1 char 10 of mycode
     Expected > after name in end tag, but got <EOE>
     Parse Failed!
@@ -425,17 +403,19 @@ considered 'multiple elements' and a pyRXP Error is raised.
 
 ::
 
-    >>> p.parse('<a></a><b></b>')
+    >>> rxp.parse('<a></a><b></b>')
     Traceback (most recent call last):
-      File "<stdin>", line 1, in ?
-    pyRXP.Error: Error: Document contains multiple elements
-     in unnamed entity at line 1 char 9 of [unknown]
+      File "<stdin>", line 1, in <module>
+    pyRXP.error: Error: Document contains multiple elements
+     in unnamed entity at line 1 char 9 of mycode
+    Document contains multiple elements
+    Parse Failed!
 
-    >>> p.parse('<outer><a></a><b></b></outer>')
+    >>> rxp.parse('<outer><a></a><b></b></outer>')
     ('outer', None, [('a', None, [], None), ('b', None, [], None)], None)
 
-3.1.5 A brief note on pyRXPU
-----------------------------
+3.1.6 A brief note on pyRXPU
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 PyRXPU is the 16-bit Unicode aware version of pyRXP.
 
@@ -468,7 +448,7 @@ in Unicode) is by the module name.
     'pyRXP'
 
 3.2. Validating against a DTD
------------------------------
+-------------------------------------------------------------------------
 
 This section describes the default behaviours when validating against a
 DTD. Most of these can be changed - see the section on flags later in
@@ -478,13 +458,6 @@ For the following examples, we're going to assume that you have a single
 directory with the DTD and any test files in it.
 
 ::
-
-    >>> import os
-    >>> os.getcwd()
-    'C:\\tmp\\pyRXP_tests'
-
-    >>> os.listdir('.')
-    ['sample1.xml', 'sample2.xml', 'sample3.xml', 'sample4.xml', 'tinydtd.dtd']
 
     >>> dtd = open('tinydtd.dtd', 'r').read()
 
@@ -521,7 +494,7 @@ pyRXP will attempt to validate it.
 ::
 
 
-    >>p.parse(fn)
+    >> rxp.parse(fn)
     ('a',
      None,
      ['\n', ('b', None, ['This tag is the contents'], None), '\n'],
@@ -548,10 +521,10 @@ raise a pyRXP error.
     <b>This is the contents</b>
     </a>
 
-    >>> p.parse(fn)
+    >>> rxp.parse(fn)
     C:\tmp\pyRXP_tests\nonexistent.dtd: No such file or directory
     Traceback (most recent call last):
-      File "<stdin>", line 1, in ?
+      File "<stdin>", line 1, in <module>
     pyRXP.Error: Error: Couldn't open dtd entity file:///C:/tmp/pyRXP_tests/nonexistent.dtd
      in unnamed entity at line 2 char 38 of [unknown]
 
@@ -568,11 +541,13 @@ This is a different kind of error to one where no DTD is specified:
     <b>This is the contents</b>
     </a>
 
-    >>> p.parse(fn,NoNoDTDWarning=0)
+    >>> rxp.parse(fn,NoNoDTDWarning=0)
     Traceback (most recent call last):
-      File "<stdin>", line 1, in ?
-    pyRXP.Error: Error: Document has no DTD, validating abandoned
+      File "<stdin>", line 1, in <module>
+    pyRXP.error: Error: Document has no DTD, validating abandoned
      in unnamed entity at line 3 char 2 of [unknown]
+    Document has no DTD, validating abandoned
+    Parse Failed!
 
 If you have errors in your XML and it does not validate against the DTD,
 you will get a different kind of pyRXPError.
@@ -589,9 +564,9 @@ you will get a different kind of pyRXPError.
     <b>This is the contents</b>
     </x>
 
-    >>> p.parse(fn)
+    >>> rxp.parse(fn)
     Traceback (most recent call last):
-      File "<stdin>", line 1, in ?
+      File "<stdin>", line 1, in <module>
     pyRXP.Error: Error: Start tag for undeclared element x
      in unnamed entity at line 4 char 3 of [unknown]
     >>>
@@ -599,12 +574,12 @@ you will get a different kind of pyRXPError.
 Whether PyRXP validates against a DTD, together with a number of other
 behaviours is decided by how the various flags are set.
 
-By default, ErrorOnValidityErrors is set to 1, as is NoNoDTDWarning. If
-you want the XML you are parsing to actually validate against your DTD,
+By default, ``ErrorOnValidityErrors`` is set to 1, as is ``NoNoDTDWarning``.
+If you want the XML you are parsing to actually validate against your DTD,
 you should have both of these set to 1 (which is the default value),
 otherwise instead of raising a pyRXP error saying the XML that doesn't
 conform to the DTD (which may or may not exist) this will be silently
-ignored. You should also have Validate set to 1, otherwise validation
+ignored. You should also have ``Validate`` set to 1, otherwise validation
 won't even be attempted.
 
 Note that the first examples in this chapter - the ones without a DTD -
@@ -615,48 +590,48 @@ notices the DTD is missing but continues in non-validating mode. There
 are numerous flags set out below which affect the behaviour.
 
 3.3 Interface Summary
----------------------
+-------------------------------------------------------------------------
 
 The python module exports the following:
 
-Error
+``error``
 
 a python exception
 
-Version
+``version``
 
 the string version of the module
 
-RXPVersion
+``RXPVersion``
 
 the version string of the rxp library embedded in the module
 
-parser\_flags
+``parser_flags``
 
 a dictionary of parser flags - the values are the defaults for parsers
 
-Parser(\*kw)
+``Parser(**kwargs)``
 
 Create a parser
 
-piTagName
+``piTagName``
 
 special tagname used for processing instructions
 
-commentTagName
+``commentTagName``
 
 special tagname used for comments
 
-recordLocation
+``recordLocation``
 
 a special do nothing constant that can be used as the 'fourth' argument
 and causes location information to be recorded in the fourth position of
 each node.
 
 3.4 Parser Object Attributes and Methods
-----------------------------------------
+-------------------------------------------------------------------------
 
-parse(src)
+``parse(src, **kwargs)``
 
 We have already seen that this is the main interface to the parser. It
 returns ReportLab's standard tuple tree representation of the xml
@@ -667,28 +642,28 @@ only. For example, we can do
 
 ::
 
-    >>>p.parse('<a>some text</a>', ReturnList=1, ReturnComments=1)
+    >>> rxp.parse('<a>some text</a>', ReturnList=1, ReturnComments=1)
 
 instead of
 
 ::
 
-    >>>p.ReturnList=1
-    >>>p.ReturnComments=1
-    >>>p.parse('<a>some text</a>')
+    >>> rxp.ReturnList=1
+    >>> rxp.ReturnComments=1
+    >>> rxp.parse('<a>some text</a>')
 
-Any other parses using p will be unaffacted by the values of ReturnList
-and ReturnComments in the first example, whereas all parses using p will
-have ReturnList and ReturnComments set to 1 after the second.
+Any other parses using rxp will be unaffacted by the values of ``ReturnList``
+and ``ReturnComments`` in the first example, whereas all parses using p will
+have ``ReturnList`` and ``ReturnComments`` set to 1 after the second.
 
-srcName
+``srcName``
 
 A name used to refer to the source text in error and warning messages.
 It is initially set as '<unknown>'. If you know that the data came from
 "spam.xml" and you want error messages to say so, you can set this to
 the filename.
 
-warnCB 0,
+``warnCB``
 
 Warning callback. Should either be None, 0, or a callable object (e.g. a
 function) with a single argument which will receive warning messages. If
@@ -696,7 +671,7 @@ None is used then warnings are thrown away. If the default 0 value is
 used then warnings are written to the internal error message buffer and
 will only be seen if an error occurs.
 
-eoCB
+``eoCB``
 
 Entity-opening callback. The argument should be None or a callable
 method with a single argument. This method will be called when external
@@ -705,20 +680,20 @@ So, you could intercept a declaration referring to
 *http://some.slow.box/somefile.dtd* and point at at the local copy you
 know you have handy, or implement a DTD-caching scheme.
 
-fourth
+``fourth``
 
 This argument should be None (default) or a callable method with no
 arguments. If callable, will be called to get or generate the 4th item
 of every 4-item tuple or list in the returned tree. May also be the
-special value pyRXP.recordLocation to cause the 4th item to be set to a
+special value ``pyRXP.recordLocation`` to cause the 4th item to be set to a
 location information tuple
 ((startname,startline,startchar),(endname,endline,endchar)).
 
 3.5 List of Flags
------------------
+-------------------------------------------------------------------------
 
 Flag attributes corresponding to the rxp flags; the values are the
-module standard defaults. pyRXP.parser\_flags returns these as a
+module standard defaults. ``pyRXP.parser_flags`` returns these as a
 dictionary if you need to refer to these inline.
 
 +----------------------------------+-----------+
@@ -804,13 +779,16 @@ dictionary if you need to refer to these inline.
 +----------------------------------+-----------+
 
 3.6 Flag explanations and examples
-----------------------------------
+-------------------------------------------------------------------------
 
 With so many flags, there is a lot of scope for interaction between
 them. These interactions are not documented yet, but you should be aware
 that they exist.
 
-**AllowMultipleElements**
+.. _AllowMultipleElements:
+
+AllowMultipleElements
+^^^^^^^^^^^^^^^^^^^^^
 
 Default: 0
 
@@ -825,19 +803,22 @@ Example:
 
 ::
 
-    >>> p.AllowMultipleElements = 0
-    >>> p.parse('<a></a><b></b>')
+    >>> rxp.AllowMultipleElements = 0
+    >>> rxp.parse('<a></a><b></b>')
     Traceback (most recent call last):
-      File "<stdin>", line 1, in ?
-    pyRXP.Error: Error: Document contains multiple elements
+      File "<stdin>", line 1, in <module>
+    pyRXP.error: Error: Document contains multiple elements
      in unnamed entity at line 1 char 9 of [unknown]
+    Document contains multiple elements
 
-    >>> p.AllowMultipleElements = 1
-    >>> p.parse('<a></a><b></b>')
+    >>> rxp.AllowMultipleElements = 1
+    >>> rxp.parse('<a></a><b></b>')
     ('a', None, [], None)
-    >>>
 
-**AllowUndeclaredNSAttributes**
+.. _AllowUndeclaredNSAttributes:
+
+AllowUndeclaredNSAttributes
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Default: 0
 
@@ -849,7 +830,10 @@ Example:
 
 *[to be added]*
 
-**CaseInsensitive**
+.. _CaseInsensitive:
+
+CaseInsensitive
+^^^^^^^^^^^^^^^
 
 Default: 0
 
@@ -861,19 +845,22 @@ Example:
 
 ::
 
-    >>> p.CaseInsensitive=1
-    >>> p.parse('<a></A>')
+    >>> rxp.CaseInsensitive=1
+    >>> rxp.parse('<a></A>')
     ('A', None, [], None)
 
-    >>> p.CaseInsensitive=0
-    >>> p.parse('<a></A>')
+    >>> rxp.CaseInsensitive=0
+    >>> rxp.parse('<a></A>')
     Traceback (most recent call last):
-      File "<stdin>", line 1, in ?
-    pyRXP.Error: Error: Mismatched end tag: expected </a>, got </A>
+      File "<stdin>", line 1, in <module>
+    pyRXP.error: Error: Mismatched end tag: expected </a>, got </A>
      in unnamed entity at line 1 char 7 of [unknown]
-    >>>
+    Mismatched end tag: expected </a>, got </A>
 
-**ErrorOnBadCharacterEntities**
+.. _ErrorOnBadCharacterEntities:
+
+ErrorOnBadCharacterEntities
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Default: 1
 
@@ -886,17 +873,22 @@ Example:
 
 ::
 
-    >>> p.ErrorOnBadCharacterEntities=0
-    >>> p.parse('<a>&#999;</a>')
+    >>> rxp.ErrorOnBadCharacterEntities=0
+    >>> rxp.parse('<a>&#999;</a>')
     ('a', None, [''], None)
 
-    >>> p.parse('<a>&#999;</a>')
+    >>> rxp.ErrorOnBadCharacterEntities=1
+    >>> rxp.parse('<a>&#999;</a>')
     Traceback (most recent call last):
-      File "<stdin>", line 1, in ?
-    pyRXP.Error: Error: 0x3e7 is not a valid 8-bit XML character
+      File "<stdin>", line 1, in <module>
+    pyRXP.error: Error: 0x3e7 is not a valid 8-bit XML character
      in unnamed entity at line 1 char 10 of [unknown]
+    0x3e7 is not a valid 8-bit XML character
 
-**ErrorOnUndefinedAttributes**
+.. _ErrorOnUndefinedAttributes:
+
+ErrorOnUndefinedAttributes
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Default: 0
 
@@ -905,9 +897,12 @@ Description:
 If this is set and there is a DTD, references to undeclared attributes
 are an error.
 
-See also: ErrorOnUndefinedElements
+See also: :ref:`ErrorOnUndefinedElements`
 
-**ErrorOnUndefinedElements**
+.. _ErrorOnUndefinedElements:
+
+ErrorOnUndefinedElements
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Default: 0
 
@@ -916,9 +911,12 @@ Description:
 If this is set and there is a DTD, references to undeclared elements are
 an error.
 
-See also: ErrorOnUndefinedAttributes
+See also: :ref:`ErrorOnUndefinedAttributes`
 
-**ErrorOnUndefinedEntities**
+.. _ErrorOnUndefinedEntities:
+
+ErrorOnUndefinedEntities
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Default: 1
 
@@ -932,18 +930,22 @@ Example:
 
 ::
 
-    >>> p.ErrorOnUndefinedEntities=0
-    >>> p.parse('<a>&dud;</a>')
+    >>> rxp.ErrorOnUndefinedEntities=0
+    >>> rxp.parse('<a>&dud;</a>')
     ('a', None, ['&dud;'], None)
 
-    >>> p.ErrorOnUndefinedEntities=1
-    >>> p.parse('<a>&dud;</a>')
+    >>> rxp.ErrorOnUndefinedEntities=1
+    >>> rxp.parse('<a>&dud;</a>')
     Traceback (most recent call last):
-      File "<stdin>", line 1, in ?
-    pyRXP.Error: Error: Undefined entity dud
+      File "<stdin>", line 1, in <module>
+    pyRXP.error: Error: Undefined entity dud
      in unnamed entity at line 1 char 9 of [unknown]
+    Undefined entity dud
 
-**ErrorOnUnquotedAttributeValues**
+.. _ErrorOnUnquotedAttributeValues:
+
+ErrorOnUnquotedAttributeValues
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Default: 1
 
@@ -951,7 +953,10 @@ Description:
 
 *[to be added]*
 
-**ErrorOnValidityErrors**
+.. _ErrorOnValidityErrors:
+
+ErrorOnValidityErrors
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Default: 1
 
@@ -961,7 +966,10 @@ If this is on, validity errors will be reported as errors rather than
 warnings. This is useful if your program wants to rely on the validity
 of its input.
 
-**ExpandEmpty**
+.. _ExpandEmpty:
+
+ExpandEmpty
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Default: 0
 
@@ -970,7 +978,10 @@ Description:
 If false, empty attribute dicts and empty lists of children are changed
 into the value None in every 4-item tuple or list in the returned tree.
 
-**ExpandCharacterEntities**
+.. _ExpandCharacterEntities:
+
+ExpandCharacterEntities
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Default: 1
 
@@ -978,24 +989,29 @@ Description:
 
 If this is set, entity references are expanded. If not, the references
 are treated as text, in which case any text returned that starts with an
-ampersand must be an entity reference (and provided MergePCData is off,
+ampersand must be an entity reference (and provided ``MergePCData`` is off,
 all entity references will be returned as separate pieces).
 
-See also: ExpandGeneralEntities, ErrorOnBadCharacterEntities
+See also: :ref:`ExpandGeneralEntities`, :ref:`ErrorOnBadCharacterEntities`
 
 Example:
 
 ::
 
-    >>> p.ExpandCharacterEntities=1
-    >>> p.parse('<a>&#109;</a>')
+    >>> rxp.ExpandCharacterEntities=1
+    >>> rxp.parse('<a>&#109;</a>')
     ('a', None, ['m'], None)
 
-    >>> p.ExpandCharacterEntities=0
-    >>> p.parse('<a>&#109;</a>')
+    >>> rxp.ExpandCharacterEntities=0
+    >>> rxp.parse('<a>&#109;</a>')
     ('a', None, ['&#109;'], None)
 
-**ExpandGeneralEntities**
+
+
+.. _ExpandGeneralEntities:
+
+ExpandGeneralEntities
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Default: 1
 
@@ -1003,24 +1019,27 @@ Description:
 
 If this is set, entity references are expanded. If not, the references
 are treated as text, in which case any text returned that starts with an
-ampersand must be an entity reference (and provided MergePCData is off,
+ampersand must be an entity reference (and provided ``MergePCData`` is off,
 all entity references will be returned as separate pieces).
 
-See also: ExpandCharacterEntities
+See also: :ref:`ExpandCharacterEntities`
 
 Example:
 
 ::
 
-    >>> p.ExpandGeneralEntities=0
-    >>> p.parse('<a>&amp;</a>')
+    >>> rxp.ExpandGeneralEntities=0
+    >>> rxp.parse('<a>&amp;</a>')
     ('a', None, ['&amp;'], None)
 
-    >>> p.ExpandGeneralEntities=1
-    >>> p.parse('<a>&amp;</a>')
-    ('a', None, ['&'], None)
+    >>> rxp.ExpandGeneralEntities=1
+    >>> rxp.parse('<a>&amp;</a>')
+    ('a', None, ['&#38;'], None)
 
-**IgnoreEntities**
+.. _IgnoreEntities:
+
+IgnoreEntities
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Default: 0
 
@@ -1033,15 +1052,18 @@ Example:
 
 ::
 
-    >>> p.IgnoreEntities=0
-    >>> p.parse('<a>&amp;</a>')
-    ('a', None, ['&'], None)
+    >>> rxp.IgnoreEntities=0
+    >>> rxp.parse('<a>&amp;</a>')
+    ('a', None, ['&#38;'], None)
 
-    >>> p.IgnoreEntities=1
-    >>> p.parse('<a>&amp;</a>')
+    >>> rxp.IgnoreEntities=1
+    >>> rxp.parse('<a>&amp;</a>')
     ('a', None, ['&amp;'], None)
 
-**IgnorePlacementErrors**
+.. _IgnorePlacementErrors:
+
+IgnorePlacementErrors
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Default: 0
 
@@ -1049,7 +1071,10 @@ Description:
 
 *[to be added]*
 
-**MaintainElementStack**
+.. _MaintainElementStack:
+
+MaintainElementStack
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Default: 1
 
@@ -1057,7 +1082,10 @@ Description:
 
 *[to be added]*
 
-**MakeMutableTree**
+.. _MakeMutableTree:
+
+MakeMutableTree
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Default: 0
 
@@ -1066,7 +1094,10 @@ Description:
 If false, nodes in the returned tree are 4-item tuples; if true, 4-item
 lists.
 
-**MergePCData**
+.. _MergePCData:
+
+MergePCData
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Default: 1
 
@@ -1075,17 +1106,23 @@ Description:
 If this is set, text data will be merged across comments and entity
 references.
 
-**NoNoDTDWarning**
+.. _NoNoDTDWarning:
+
+NoNoDTDWarning
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Default: 1
 
 Description:
 
-Usually, if Validate is set, the parser will produce a warning if the
+Usually, if ``Validate`` is set, the parser will produce a warning if the
 document has no DTD. This flag suppresses the warning (useful if you
 want to validate if possible, but not complain if not).
 
-**NormaliseAttributeValues**
+.. _NormaliseAttributeValues:
+
+NormaliseAttributeValues
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Default: 1
 
@@ -1094,21 +1131,27 @@ Description:
 If this is set, attributes are normalised according to the standard. You
 might want to not normalise if you are writing something like an editor.
 
-**ProcessDTD**
+.. _ProcessDTD:
+
+ProcessDTD
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Default: 0
 
 Description:
 
-If TrustSDD is set and a DOCTYPE declaration is present, the internal
+If ``TrustSDD`` is set and a DOCTYPE declaration is present, the internal
 part is processed and if the document was not declared standalone or if
-Validate is set the external part is processed. Otherwise, whether the
-DOCTYPE is automatically processed depends on ProcessDTD; if ProcessDTD
-is not set the user must call ParseDtd() if desired.
+``Validate`` is set the external part is processed. Otherwise, whether the
+DOCTYPE is automatically processed depends on ``ProcessDTD``; if ``ProcessDTD``
+is not set the DOCTYPE is not processed.
 
-See also: TrustSDD
+See also: :ref:`TrustSDD`
 
-**RelaxedAny**
+.. _RelaxedAny:
+
+RelaxedAny
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Default: 0
 
@@ -1116,29 +1159,35 @@ Description:
 
 *[to be added]*
 
-**ReturnComments**
+.. _ReturnComments:
+
+ReturnComments
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Default: 0
 
 Description:
 
 If this is set, comments are returned as nodes with tag name
-pyRXP.commentTagName, otherwise they are ignored.
+``pyRXP.commentTagName``, otherwise they are ignored.
 
 Example:
 
 ::
 
-    >>> p.ReturnComments = 1
-    >>> p.parse('<a><!-- this is a comment --></a>')
+    >>> rxp.ReturnComments = 1
+    >>> rxp.parse('<a><!-- this is a comment --></a>')
     ('a', None, [('<!--', None, [' this is a comment '], None)], None)
-    >>> p.ReturnComments = 0
-    >>> p.parse('<a><!-- this is a comment --></a>')
+    >>> rxp.ReturnComments = 0
+    >>> rxp.parse('<a><!-- this is a comment --></a>')
     ('a', None, [], None)
 
-See also: ReturnList
+See also: :ref:`ReturnList`
 
-**ReturnDefaultedAttributes**
+.. _ReturnDefaultedAttributes:
+
+ReturnDefaultedAttributes
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Default: 1
 
@@ -1148,14 +1197,17 @@ If this is set, the returned attributes will include ones defaulted as a
 result of ATTLIST declarations, otherwise missing attributes will not be
 returned.
 
-**ReturnList**
+.. _ReturnList:
+
+ReturnList
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Default: 0
 
 Description:
 
-If both ReturnComments and ReturnList are both set to 1, the whole list
-(including any comments) is returned from a parse. If ReturnList is set
+If both ``ReturnComments`` and ``ReturnList`` are set to 1, the whole list
+(including any comments) is returned from a parse. If ``ReturnList`` is set
 to 0, only the first tuple in the list is returned (ie the actual XML
 content rather than any comments before it).
 
@@ -1163,19 +1215,22 @@ Example:
 
 ::
 
-    >>> p.ReturnComments=1
-    >>> p.ReturnList=1
-    >>> p.parse('<!-- comment --><a>Some Text</a><!-- another comment -->')
+    >>> rxp.ReturnComments=1
+    >>> rxp.ReturnList=1
+    >>> rxp.parse('<!-- comment --><a>Some Text</a><!-- another comment -->')
     [('<!--', None, [' comment '], None), ('a', None, ['Some Text'], None), ('<!--',
      None, [' another comment '], None)]
-    >>> p.ReturnList=0
-    >>> p.parse('<!-- comment --><a>Some Text</a><!-- another comment -->')
+    >>> rxp.ReturnList=0
+    >>> rxp.parse('<!-- comment --><a>Some Text</a><!-- another comment -->')
     ('a', None, ['Some Text'], None)
     >>>
 
-See also: ReturnComments
+See also: :ref:`ReturnComments`
 
-**ReturnNamespaceAttributes**
+.. _ReturnNamespaceAttributes:
+
+ReturnNamespaceAttributes
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Default: 0
 
@@ -1183,16 +1238,22 @@ Description:
 
 *[to be added]*
 
-**ReturnProcessingInstructions**
+.. _ReturnProcessingInstructions:
+
+ReturnProcessingInstructions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Default: 0
 
 Description:
 
 If this is set, processing instructions are returned as nodes with
-tagname pyRXP.piTagname, otherwise they are ignored.
+tagname ``pyRXP.piTagname``, otherwise they are ignored.
 
-**SimpleErrorFormat**
+.. _SimpleErrorFormat:
+
+SimpleErrorFormat
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Default: 0
 
@@ -1204,34 +1265,40 @@ Example:
 
 ::
 
-    >>> p.SimpleErrorFormat=0
-    >>> p.parse('<a>causes an error</b>')
+    >>> rxp.SimpleErrorFormat=0
+    >>> rxp.parse('<a>causes an error</b>')
     Traceback (most recent call last):
-      File "<stdin>", line 1, in ?
-    pyRXP.Error: Error: Mismatched end tag: expected </a>, got </b>
+      File "<stdin>", line 1, in <module>
+    pyRXP.error: Error: Mismatched end tag: expected </a>, got </b>
      in unnamed entity at line 1 char 22 of [unknown]
+    Mismatched end tag: expected </a>, got </b>
 
-    >>> p.SimpleErrorFormat=1
-    >>> p.parse('<a>causes an error</b>')
+    >>> rxp.SimpleErrorFormat=1
+    >>> rxp.parse('<a>causes an error</b>')
     Traceback (most recent call last):
-      File "<stdin>", line 1, in ?
-    pyRXP.Error: [unknown]:1:22: Mismatched end tag: expected </a>, got </b>
+      File "<stdin>", line 1, in <module>
+    pyRXP.error: [unknown]:1:22: Mismatched end tag: expected </a>, got </b>
+    Mismatched end tag: expected </a>, got </b>
 
-**TrustSDD**
+.. _TrustSDD:
+
+TrustSDD
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Default: 1
 
 Description:
 
-If TrustSDD is set and a DOCTYPE declaration is present, the internal
+If ``TrustSDD`` is set and a DOCTYPE declaration is present, the internal
 part is processed and if the document was not declared standalone or if
-Validate it is set the external part is processed. Otherwise, whether
-the DOCTYPE is automatically processed depends on ProcessDTD; if
-ProcessDTD is not set the user must call ParseDtd() if desired.
+``Validate`` is set the external part is processed.
 
-See also: ProcessDTD
+See also: :ref:`ProcessDTD`
 
-**Validate**
+.. _Validate:
+
+Validate
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Default: 1
 
@@ -1240,7 +1307,10 @@ Description:
 If this is on, the parser will validate the document. If it's off, it
 won't. It is not usually a good idea to set this to 0.
 
-**WarnOnRedefinitions**
+.. _WarnOnRedefinitions:
+
+WarnOnRedefinitions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Default: 0
 
@@ -1249,7 +1319,10 @@ Description:
 If this is on, a warning is given for redeclared elements, attributes,
 entities and notations.
 
-**XMLExternalIDs**
+.. _XMLExternalIDs:
+
+XMLExternalIDs
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Default: 1
 
@@ -1257,7 +1330,10 @@ Description:
 
 *[to be added]*
 
-**XMLLessThan**
+.. _XMLLessThan:
+
+XMLLessThan
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Default: 0
 
@@ -1265,7 +1341,10 @@ Description:
 
 *[to be added]*
 
-**XMLMiscWFErrors**
+.. _XMLMiscWFErrors:
+
+XMLMiscWFErrors
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Default: 1
 
@@ -1273,9 +1352,12 @@ Description:
 
 To do with well-formedness errors.
 
-See also: XMLStrictWFErrors
+See also: :ref:`XMLStrictWFErrors`
 
-**XMLNamespaces**
+.. _XMLNamespaces:
+
+XMLNamespaces
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Default: 0
 
@@ -1287,9 +1369,12 @@ attributes on an element. The namespace value will be prepended to names
 in the manner suggested by James Clark ie if *xmlns:foo='foovalue'* is
 active then *foo:name-->{fovalue}name*.
 
-See also: XMLSpace
+See also: :ref:`XMLSpace`
 
-**XMLPredefinedEntities**
+.. _XMLPredefinedEntities:
+
+XMLPredefinedEntities
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Default: 1
 
@@ -1304,18 +1389,22 @@ Example:
 
 ::
 
-    >>> p.XMLPredefinedEntities=1
-    >>> p.parse('<a>&amp;</a>')
+    >>> rxp.XMLPredefinedEntities=1
+    >>> rxp.parse('<a>&amp;</a>')
     ('a', None, ['&'], None)
 
-    >>> p.XMLPredefinedEntities=0
-    >>> p.parse('<a>&amp;</a>')
+    >>> rxp.XMLPredefinedEntities=0
+    >>> rxp.parse('<a>&amp;</a>')
     Traceback (most recent call last):
-      File "<stdin>", line 1, in ?
-    pyRXP.Error: Error: Undefined entity amp
-     in unnamed entity at line 1 char 9 of [unknown]
+      File "<stdin>", line 1, in <module>
+    pyRXP.error: [unknown]:1:9: Undefined entity amp
+    Undefined entity amp
 
-**XMLSpace**
+
+.. _XMLSpace:
+
+XMLSpace
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Default: 0
 
@@ -1323,9 +1412,12 @@ Description:
 
 If this is on, the parser will keep track of xml:space attributes
 
-See also: XMLNamespaces
+See also: :ref:`XMLNamespaces`
 
-**XMLStrictWFErrors**
+.. _XMLStrictWFErrors:
+
+XMLStrictWFErrors
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Default: 1
 
@@ -1334,7 +1426,10 @@ Description:
 If this is set, various well-formedness errors will be reported as
 errors rather than warnings.
 
-**XMLSyntax**
+.. _XMLSyntax:
+
+XMLSyntax
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Default: 1
 

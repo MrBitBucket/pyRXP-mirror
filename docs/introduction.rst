@@ -215,8 +215,8 @@ structure of an XML document. Each tag is represented as a tuple of
 
     (tagName, dict_of_attributes, list_of_children, spare)
 
-The dict\_of\_attributes can be None (meaning no attributes) or a
-dictionary mapping attribute names to values. The list\_of\_children may
+The dict_of_attributes can be None (meaning no attributes) or a
+dictionary mapping attribute names to values. The list_of_children may
 either be None (meaning a singleton tag) or a list with elements that
 are 4-tuples or plain strings.
 
@@ -253,7 +253,7 @@ DOES provide all the hooks and could be the basis for such a parser.
 -----------------------
 
 Sure! Join us on the Reportlab-users mailing list
-(*www.egroups.com/group/reportlab-users*), and feel free to contribute
+(*http://two.pairlist.net/mailman/listinfo/reportlab-users*), and feel free to contribute
 patches. The final section of this manual has a brief "wish list".
 
 Because the Reportlab Toolkit is used in many mission critical

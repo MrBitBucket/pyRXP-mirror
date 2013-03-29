@@ -5,49 +5,28 @@ We make available pre-built Windows binaries. On other platforms you can
 build it from source using distutils. pyRXP is a single extension module
 with no other dependencies outside Python itself.
 
-2.1 Windows binary - pyRXP.pyd
-------------------------------
+2.1 Installing from PyPI
+----------------------------
 
-ReportLab's FTP server has a win32-dlls directory, which is sub-divided
-into Python versions. Each of these has the version of the pyd file
-suitable for use with that version of Python. So, the version we use
-with Python 2.2 is at
+The easiest way to install pyRXP is by using the package on PyPI:
 
 ::
 
-    http://www.reportlab.com/ftp/win32-dlls/2.2/pyRXP.pyd
+    pip install pyRXP
 
-Download the pyRXP DLL from the ReportLab FTP site. Save the pyRXP.pyd
-in the DLLs directory under your Python installation (eg this is the
-C:\\Python22\\DLLs directory for a standard Windows installation of
-Python 2.2).
 
 2.2 Source Code installation
 ----------------------------
 
-The source code is open source under the GPL. This is available on
-SourceForge.
-
-The source for pyRXP and a slightly patched version of RXP is made
-available by anonymous CVS at
+If you'd rather install from source code (available under the GPL), you can
+find it as a Mercurial repository on BitBucket:
 
 ::
 
-    :pserver:anonymous@cvs.reportlab.sourceforge.net:/cvsroot/reportlab
+    hg clone https://bitbucket.org/rptlab/pyrxp
+    cd pyrxp
+    python setup.py install
 
-To get the source use the commands
-
-::
-
-    cvs -d :pserver:anonymous@cvs.reportlab.sourceforge.net:/cvsroot/reportlab login
-    cvs -d :pserver:anonymous@cvs.reportlab.sourceforge.net:/cvsroot/reportlab co rl_addons/pyRXP
-
-enter a carriage return for the password.
-
-If you have obtained the source code in the way described above, the
-rl\_addons/pyRXP directory should contain a distutils script, setup.py
-which should be run with argument install or build. If successful a
-shared library pyRXP.pyd or pyRXP.so should be built.
 
 2.2.1 Post installation tests
 -----------------------------
@@ -55,27 +34,17 @@ shared library pyRXP.pyd or pyRXP.so should be built.
 Whichever method you used to get pyRXP installed, you should run the
 short test suite to make sure there haven't been any problems.
 
-Cd to the rl\_addons/pyRXP/test directory and run the file
-testRXPbasic.py.
+Cd to the ``test`` directory and run the file ``testRXPbasic.py``.
 
-If you have built the Unicode aware version (pyRXPU.pyd or pyRXPU.so,
-only available in the source distribution at the moment), running the
-test program should show you this:
+Running the test program should result in a message like this:
 
 ::
 
-    C:\tmp\rl_addons\pyRXP\test>python testRXPbasic.py
-    ..........................................
-    42 tests, no failures!
+    > python testRXPbasic.py
+    ........................................
+    ............
+    52 tests, no failures!
 
-If you have only installed the standard (8-bit) pyRXP, you should see
-something like this:
-
-::
-
-    C:\tmp\rl_addons\pyRXP\test>testRXPbasic.py
-    .....................
-    21 tests, no failures!
 
 These are basic health checks, which are the minimum required to make
 sure that nothing drastic is wrong. This is the very least that you
@@ -83,7 +52,7 @@ should do - you should not skip this step!
 
 If you want to be more thorough, there is a much more comprehensive test
 suite which tests XML compliance. This is run by a file called
-test\_xmltestsuite.py, also in the test directory. This depends on a set
+test_xmltestsuite.py, also in the test directory. This depends on a set
 of more than 300 tests written by James Clark which you can download in
 the form of a zip file from
 
@@ -98,21 +67,40 @@ or
     ftp://ftp.jclark.com/pub/xml/xmltest.zip
 
 You can simply drop this in the test directory and run the
-test\_xmltestsuite file which will automatically unpack and use it.
+test_xmltestsuite file which will automatically unpack and use it.
 
-2.3 Examples
-------------
 
-We have made available a small directory of example stuff to play with.
-This will be superceded by the release of the framework soon. As such
-there is no formal package location for it; unzip anywhere you want.
+2.3 Windows binary - pyRXP.pyd
+------------------------------
+
+ReportLab's FTP server has win32-dlls and amd64-dlls directories,
+both of which are sub-divided into Python versions, where you'll find the
+suitable pyd file.
+So, assuming you use Python 2.7 on a 64-bit Windows machine, the file you
+need to download is:
 
 ::
 
-    http://www.reportlab.com/ftp/pyRXP_examples.zip
+    http://www.reportlab.com/ftp/amd64-dlls/2.7/pyRXP.pyd
 
-The examples directory includes a couple of substantial XML files with
+Download the pyRXP DLL from the ReportLab FTP site. Save the pyRXP.pyd
+in the DLLs directory under your Python installation (eg this is the
+C:\\Python27\\DLLs directory for a standard Windows installation of
+Python 2.7).
+
+
+2.4 Examples
+------------
+
+If you installed pyRXP from source you'll find an ``examples`` directory,
+which includes a couple of substantial XML files with
 DTDs, a wrapper module called *xmlutils* which provides easy access to
-the tuple tree, and the beginnings of a benchmarking script. The
-benchmark script tries to find lots of XML parsers on your system. Both
-are documented in section 4 below.
+the tuple tree, and a simple benchmarking script, both documented in section 4.
+
+*Note for Windows users:*
+
+If you only installed the DLL, you can download the examples from
+::
+
+    http://www.reportlab.com/ftp/pyrxp_examples.zip
+
