@@ -41,42 +41,15 @@ if __name__=='__main__': #NO RUNTESTS
 	VERSION = VERSION and VERSION.group(1) or 'unknown'
 	RXPDIR=os.path.join(pyRXPDir,'rxp')
 	RXPLIBSOURCES= [os.path.join(RXPDIR,f) for f in rxpFiles]
-	EXT_MODULES =	[Extension( 'pyRXP',
+	EXT_MODULES =	[Extension( 'pyRXPU',
 								[pyRXP_c]+RXPLIBSOURCES,
 								include_dirs=[RXPDIR],
-								define_macros=[('CHAR_SIZE', 8),],
+								define_macros=[('CHAR_SIZE', 16),],
 								library_dirs=[],
 								# libraries to link against
 								libraries=LIBS,
 								),
 					]
-	# We copy the rxp source - we need to build it a second time for uRXP
-	# with different compile time flags
-	RXPUDIR=os.path.join(pkgDir,'build','_pyRXPU')
-	if os.path.exists(RXPUDIR):
-		shutil.rmtree(RXPUDIR)
-	os.makedirs(RXPUDIR)
-	uRXPLIBSOURCES=[]
-	for f in rxpFiles:
-		uRXP_file = os.path.join(RXPUDIR,f.replace('.','U.'))
-		try:
-			shutil.copy2(os.path.join(RXPDIR,f),uRXP_file)
-		except:
-			print RXPDIR, f, uRXP_file
-			raise
-		uRXPLIBSOURCES.append(uRXP_file)
-	pyRXPU_c = os.path.join(RXPUDIR,'pyRXPU.c')
-	shutil.copy2(pyRXP_c,pyRXPU_c)
-	uRXPLIBSOURCES.append(pyRXPU_c)
-	EXT_MODULES.append(Extension('pyRXPU',
-					uRXPLIBSOURCES,
-					include_dirs=[RXPDIR],
-					define_macros=[('CHAR_SIZE', 16),],
-					library_dirs=[],
-					# libraries to link against
-					libraries=LIBS,
-					))
-
 
 	setup(	name = "pyRXP",
 			version = VERSION,
