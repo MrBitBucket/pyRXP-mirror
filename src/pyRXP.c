@@ -27,6 +27,9 @@ Copyright ReportLab Europe Ltd. 2000-2013 see license.txt for license details
 #	define Py_ssize_t int
 #endif
 
+static	int	g_byteorder;
+static	char *g_encname;
+
 struct module_state {
 	PyObject *moduleError;
 	PyObject *moduleVersion;
@@ -40,7 +43,7 @@ struct module_state {
 
 typedef struct {
 	PyObject_HEAD
-	PyObject		*warnCB, *eoCB, *srcName, *fourth
+	PyObject		*warnCB, *eoCB, *ucrCB, *srcName, *fourth
 #ifdef isPy3
 										, *__module__
 #endif	
@@ -210,7 +213,11 @@ The python module exports the following\n\
             entities are opened. The method should return a possibly\n\
             modified URI or a tuple containing a tuple (URI,'text...') to allow\
 			the content itself to be returned. The possibly changed URI\
-			is required.\
+			is required.\n\
+        ucrCB    argument should be None or a callable method with\n\
+            a single argument. This method will be called when undefined\n\
+            character references are seen. The method should return a byte string\n\
+			containing the definition of the entity\
 \n""\
         fourth  argument should be None (default) or a callable method with\n\
             no arguments. If callable, will be called to get or generate the\n\
@@ -405,6 +412,7 @@ typedef	struct {
 		int			warnErr;
 		PyObject*	warnCB;
 		PyObject*	eoCB;
+		PyObject*	ucrCB;
 		PyObject*	fourth;
 		PyObject*	(*Node_New)(ssize_t);
 		int			(*SetItem)(PyObject*, Py_ssize_t, PyObject*);
@@ -414,7 +422,7 @@ typedef	struct {
 		int			utf8;
 #endif
 #ifdef	isPy3
-		PyObject*	__self__;	/*the associated parser object*/
+		pyRXPParserObject*	__self__;	/*the associated parser object*/
 #endif
 		} ParserDetails;
 
@@ -811,6 +819,55 @@ static void myWarnCB(XBit bit, void *info)
 		}
 }
 
+static Char *myUCRCB(Char *name, int namelen, void *info)
+{
+	ParserDetails*	pd=(ParserDetails*)info;
+	PyObject	*arglist;
+	PyObject	*result;
+	PyObject	*uname;
+	PyObject	*bytes;
+	Char		*r=NULL;
+	Py_ssize_t	sz;
+	int			err, ir;
+	char		*s;
+
+	if(pd->ucrCB==Py_None) return r;
+	uname = PyUnicode_DecodeUTF16((const char *)name, (Py_ssize_t)(sizeof(Char)*namelen), NULL, &g_byteorder);
+	if(!uname) return r;
+	arglist = Py_BuildValue("(O)",uname);
+	Py_DECREF(uname);
+	result = PyEval_CallObject(pd->ucrCB, arglist);
+	Py_DECREF(arglist);
+	if(result){
+		if(PyBytes_Check(result)){
+			sz = PyBytes_GET_SIZE(result);
+			s = PyBytes_AS_STRING(result);
+			uname = result;
+			result = PyUnicode_FromStringAndSize(s,sz);
+			Py_DECREF(uname);
+			}
+		if(result){
+			if(PyUnicode_Check(result)){
+				bytes=PyUnicode_AsEncodedString(result, g_encname, "strict");
+				if(bytes){
+					err = PyBytes_AsStringAndSize(bytes,&s,&sz);
+					if(!err){
+						/*at last we got a bunch of bytes in our encoding*/
+						r = (Char*)Malloc(sz+sizeof(Char));
+						if(r){
+							strncpy((char *)r,s,sz);
+							for(ir=1;ir<=sizeof(Char);ir++) ((char *)r)[sz+ir]=0;
+							}
+						}
+					Py_DECREF(bytes);
+					}
+				}
+			Py_DECREF(result);
+			}
+		}
+	return r;
+}
+
 static void __SetFlag(pyRXPParserObject* p, ParserFlag flag, int value)
 {
 	int flagset;
@@ -850,6 +907,7 @@ static int pyRXPParser_setattr(pyRXPParserObject *self, char *name, PyObject* va
 
 	if(!strcmp(name,"warnCB")) return _set_CB(name,&self->warnCB,value);
 	else if(!strcmp(name,"eoCB")) return _set_CB(name,&self->eoCB,value);
+	else if(!strcmp(name,"ucrCB")) return _set_CB(name,&self->ucrCB,value);
 	else if(!strcmp(name,"fourth")){
 		if(value==PSTATE(self,recordLocation)){
 			return _set_attr(&self->fourth,value);
@@ -897,11 +955,13 @@ static PyObject* pyRXPParser_parse(pyRXPParserObject* xself, PyObject* args, PyO
 	Entity		e;
 	pyRXPParserObject	dummy = *xself;
 	pyRXPParserObject*	self = &dummy;
+	memset(&CB,sizeof(CB),0);
 #ifdef	isPy3
 	CB.__self__ = self;
 #endif
 	if(self->warnCB) Py_INCREF(self->warnCB);
 	if(self->eoCB) Py_INCREF(self->eoCB);
+	if(self->ucrCB) Py_INCREF(self->ucrCB);
 	if(self->fourth) Py_INCREF(self->fourth);
 	if(self->srcName) Py_INCREF(self->srcName);
 
@@ -938,19 +998,26 @@ static PyObject* pyRXPParser_parse(pyRXPParserObject* xself, PyObject* args, PyO
 	if(self->eoCB){
 		CB.eoCB = self->eoCB;
 		}
+	if(self->ucrCB){
+		CB.ucrCB = self->ucrCB;
+		}
 	CB.fourth = self->fourth;
 
 	p = NewParser();
 	CB.p = p;
-	ParserSetWarningCallbackArg(p, &CB);
+	ParserSetWarningCallbackArg(p, &CB);	/*we need this even if we don't have a warnCB*/
+	if(self->warnCB && self->warnCB!=Py_None){
+		ParserSetWarningCallback(p, myWarnCB);
+		}
+	if(self->ucrCB && self->ucrCB!=Py_None){
+		ParserSetUCRProcArg(p, &CB);
+		ParserSetUCRProc(p, myUCRCB);
+		}
 	p->flags[0] = self->flags[0];
 	p->flags[1] = self->flags[1];
-	if((self->warnCB && self->warnCB!=Py_None) || (self->eoCB && self->eoCB!=Py_None)){
-		if(self->warnCB && self->warnCB!=Py_None) ParserSetWarningCallback(p, myWarnCB);
-		if(self->eoCB && self->eoCB!=Py_None){
-			ParserSetEntityOpener(p, entity_open);
-			ParserSetEntityOpenerArg(p, &CB);
-			}
+	if(self->eoCB && self->eoCB!=Py_None){
+		ParserSetEntityOpener(p, entity_open);
+		ParserSetEntityOpenerArg(p, &CB);
 		}
 	CB.none_on_empty = !__GetFlag(self,ExpandEmpty);
 #if	CHAR_SIZE==16
@@ -985,6 +1052,7 @@ L_1:
 	Py_XDECREF(dsrc);
 	Py_XDECREF(self->warnCB);
 	Py_XDECREF(self->eoCB);
+	Py_XDECREF(self->ucrCB);
 	Py_XDECREF(self->fourth);
 	Py_XDECREF(self->srcName);
 	return retVal;
@@ -1071,7 +1139,7 @@ static pyRXPParserObject* pyRXPParser(PyObject* module, PyObject* args, PyObject
 
 	if(!PyArg_ParseTuple(args, ":Parser")) return NULL;
 	if(!(self = PyObject_NEW(pyRXPParserObject, &pyRXPParserType))) return NULL;
-	self->warnCB = self->eoCB = self->fourth = self->srcName = NULL;
+	self->warnCB = self->eoCB = self->ucrCB = self->fourth = self->srcName = NULL;
 #ifdef isPy3
 	self->__module__ = module;
 #endif
@@ -1159,6 +1227,9 @@ DL_EXPORT(void) MODULEINIT(void)
 			 *piTagName=NULL, *commentTagName=NULL, *CDATATagName=NULL, *recordLocation=NULL,
 			 *parser_flags=NULL;
 	int	i;
+	g_byteorder = InternalCharacterEncoding==CE_UTF_16B?1:-1;
+	g_encname = g_byteorder==1?"utf_16_be":"utf_16_le";
+
 #if	defined(_DEBUG) && defined(WIN32)
 	i = _CrtSetDbgFlag(_CRTDBG_REPORT_FLAG);
 	i |= _CRTDBG_CHECK_ALWAYS_DF;

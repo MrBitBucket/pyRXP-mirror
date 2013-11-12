@@ -644,6 +644,8 @@ Parser NewParser(void)
     p->dtd_callback_arg = 0;
     p->warning_callback_arg = 0;
     p->entity_opener_arg = 0;
+    p->ucr_proc = 0;
+    p->ucr_proc_arg = 0;
     p->external_pe_depth = 0;
 
     p->checker = 0;
@@ -754,6 +756,16 @@ void ParserSetWarningCallback(Parser p, CallbackProc cb)
 void ParserSetEntityOpener(Parser p, EntityOpenerProc opener)
 {
     p->entity_opener = opener;
+}
+
+void ParserSetUCRProc(Parser p, CallbackProc cb)
+{
+    p->ucr_proc = cb;
+}
+
+void ParserSetUCRProcArg(Parser p, void *arg)
+{
+    p->ucr_proc_arg = arg;
 }
 
 #ifndef FOR_LT
@@ -3412,6 +3424,16 @@ static int parse_reference(Parser p, int pe, int expand, int allow_external)
 	return transcribe(p, 1 + p->namelen + 1, 1 + p->namelen + 1);
 
     e = FindEntityN(p->dtd, p->name, p->namelen, pe);
+	if(!e && p->ucr_proc){
+		/*we have a callback let's try it*/
+		Char *ndef=p->ucr_proc(p->name,p->namelen,p->ucr_proc_arg);
+		if(ndef){
+			if(!(e = NewInternalEntityN(p->name, p->namelen, ndef, 0, 0, 0, 0)))
+	    		return error(p, "System error");
+			if(!DefineEntity(p->dtd, e, 0))
+	    		return error(p, "System error");
+			}
+		}
     if(!e)
     {
 	Char *buf;
