@@ -43,19 +43,16 @@ struct module_state {
 
 typedef struct {
 	PyObject_HEAD
-	PyObject		*warnCB, *eoCB, *ucrCB, *srcName, *fourth
-#ifdef isPy3
-										, *__module__
-#endif	
-													;
+	PyObject		*warnCB, *eoCB, *ucrCB, *srcName, *fourth, *__module__;
 	int				flags[2];
 	} pyRXPParserObject;
 
 #ifdef isPy3
 #	define GETSTATE(m) ((struct module_state*)PyModule_GetState(m))
 #	define MSTATE(m,n) GETSTATE(m)->n
-#	define PSTATE(p,n) MSTATE(((pyRXPParserObject *)p)->__module__,n)
-#	define PDSTATE(pd,n) PSTATE(pd->__self__,n)
+#	define PPSTATE(p,n) MSTATE(((pyRXPParserObject *)p)->__module__,n)
+#	define PDSTATE(pd,n) PPSTATE(((ParserDetails*)pd)->__self__,n)
+#	define PSTATE(p,n) PDSTATE(((Parser)p)->warning_callback_arg,n)
 #	define PyInt_FromLong	PyLong_FromLong
 #	define PyInt_AsLong	PyLong_AsLong
 #	define staticforward static
@@ -66,6 +63,11 @@ typedef struct {
 PyObject *RLPy_FindMethod(PyMethodDef *ml, PyObject *self, const char* name){
 	for(;ml->ml_name!=NULL;ml++)
 		if(name[0]==ml->ml_name[0] && strcmp(name+1,ml->ml_name+1)==0) return PyCFunction_New(ml, self);
+	if(1){
+		char buf[128];
+		sprintf(buf,"attribute '%s' not found", name);
+		PyErr_SetString(PyExc_AttributeError, buf);
+		}
 	return NULL;
 	}
 #	define Py_FindMethod RLPy_FindMethod
@@ -74,8 +76,9 @@ PyObject *RLPy_FindMethod(PyMethodDef *ml, PyObject *self, const char* name){
 	static struct module_state _state;
 #	define GETSTATE(m) (&_state)
 #	define MSTATE(m,n) GETSTATE(m)->n
-#	define PSTATE(p,n) MSTATE(p,n)
+#	define PPSTATE(p,n) MSTATE(p,n)
 #	define PDSTATE(pd,n) MSTATE(pd,n)
+#	define PSTATE(p,n) MSTATE(p,n)
 #   include "bytesobject.h"
 #	ifndef PyVarObject_HEAD_INIT
 #		define PyVarObject_HEAD_INIT(type, size) \
@@ -588,9 +591,9 @@ static	int handle_bit(Parser p, XBit bit, PyObject *stack[],int *depth)
 				s = PyDict_New();
 				PyDict_SetItemString(s, "name", t=PYSTRING(bit->pi_name));
 				Py_XDECREF(t);
-				t = _makeNodePD( pd, PSTATE(p,piTagName), s, 0);
+				t = _makeNodePD( pd, PDSTATE(pd,piTagName), s, 0);
 				if(pd->fourth==PDSTATE(pd,recordLocation)) _reverseSrcInfoTuple(PyTuple_GET_ITEM(t,3));
-				Py_INCREF(PSTATE(p,piTagName));
+				Py_INCREF(PDSTATE(pd,piTagName));
 				s = PYSTRING(bit->pi_chars);
 				PyList_Append(PDGetItem(t,2),s);
 				Py_XDECREF(s);
@@ -829,7 +832,7 @@ static Char *myUCRCB(Char *name, int namelen, void *info)
 	Char		*r=NULL;
 	Py_ssize_t	sz;
 	int			err, ir;
-	char		*s;
+	unsigned char	*s;
 
 	if(pd->ucrCB==Py_None) return r;
 	uname = PyUnicode_DecodeUTF16((const char *)name, (Py_ssize_t)(sizeof(Char)*namelen), NULL, &g_byteorder);
@@ -840,6 +843,7 @@ static Char *myUCRCB(Char *name, int namelen, void *info)
 	Py_DECREF(arglist);
 	if(result){
 		if(PyBytes_Check(result)){
+			/*if we see bytes we asssume it's utf8 encoded*/
 			sz = PyBytes_GET_SIZE(result);
 			s = PyBytes_AS_STRING(result);
 			uname = result;
@@ -855,8 +859,8 @@ static Char *myUCRCB(Char *name, int namelen, void *info)
 						/*at last we got a bunch of bytes in our encoding*/
 						r = (Char*)Malloc(sz+sizeof(Char));
 						if(r){
-							strncpy((char *)r,s,sz);
-							for(ir=1;ir<=sizeof(Char);ir++) ((char *)r)[sz+ir]=0;
+							memcpy((char *)r,s,sz);
+							for(ir=0;ir<sizeof(Char);ir++) ((char *)r)[sz+ir]=0;
 							}
 						}
 					Py_DECREF(bytes);
@@ -891,7 +895,7 @@ static int _set_attr(PyObject** pAttr, PyObject* value)
 static int _set_CB(char* name, PyObject** pCB, PyObject* value)
 {
 	if(value!=Py_None && !PyCallable_Check(value)){
-		char buf[64];
+		char buf[128];
 		sprintf(buf,"%s value must be absent, callable or None", name);
 		PyErr_SetString(PyExc_ValueError, buf);
 		return -1;
@@ -909,14 +913,26 @@ static int pyRXPParser_setattr(pyRXPParserObject *self, char *name, PyObject* va
 	else if(!strcmp(name,"eoCB")) return _set_CB(name,&self->eoCB,value);
 	else if(!strcmp(name,"ucrCB")) return _set_CB(name,&self->ucrCB,value);
 	else if(!strcmp(name,"fourth")){
-		if(value==PSTATE(self,recordLocation)){
+		if(value==PPSTATE(self,recordLocation)){
 			return _set_attr(&self->fourth,value);
 			}
 		return _set_CB(name,&self->fourth,value);
 		}
 	else if(!strcmp(name,"srcName")){
-		if(!PyBytes_Check(value)){
-			PyErr_SetString(PyExc_ValueError, "srcName value must be a string");
+		if(PyUnicode_Check(value)){
+			v = PyUnicode_AsEncodedString(value,"utf8","strict");
+			if(v){
+				_set_attr(&self->srcName,v);
+				Py_DECREF(v);
+				return 0;
+				}
+			else{
+				PyErr_SetString(PyExc_ValueError, "cannot convert srcName value to utf8");
+				return -1;
+				}
+			}
+		else if(!PyBytes_Check(value)){
+			PyErr_SetString(PyExc_ValueError, "invalid type for srcName");
 			return -1;
 			}
 		else return _set_attr(&self->srcName,value);
@@ -990,15 +1006,15 @@ static PyObject* pyRXPParser_parse(pyRXPParserObject* xself, PyObject* args, PyO
 			if(pyRXPParser_setattr(self, KEY2STR(key), value))  goto L_1;
 		}
 
-	if(self->warnCB){
+	if(self->warnCB && self->warnCB!=Py_None){
 		CB.warnCB = self->warnCB;
 		CB.warnErr = 0;
 		CB.warnCBF = 0;
 		}
-	if(self->eoCB){
+	if(self->ucrCB && self->ucrCB!=Py_None){
 		CB.eoCB = self->eoCB;
 		}
-	if(self->ucrCB){
+	if(self->ucrCB && self->ucrCB!=Py_None){
 		CB.ucrCB = self->ucrCB;
 		}
 	CB.fourth = self->fourth;
@@ -1081,6 +1097,7 @@ static PyObject* pyRXPParser_getattr(pyRXPParserObject *self, char *name)
 	if(!strcmp(name,"warnCB")) return _get_OB(name,self->warnCB);
 	else if(!strcmp(name,"eoCB")) return _get_OB(name,self->eoCB);
 	else if(!strcmp(name,"fourth")) return _get_OB(name,self->fourth);
+	else if(!strcmp(name,"__module__")) return _get_OB(name,self->__module__);
 	else if(!strcmp(name,"srcName")){
 		Py_INCREF(self->srcName);
 		return self->srcName;
@@ -1140,9 +1157,7 @@ static pyRXPParserObject* pyRXPParser(PyObject* module, PyObject* args, PyObject
 	if(!PyArg_ParseTuple(args, ":Parser")) return NULL;
 	if(!(self = PyObject_NEW(pyRXPParserObject, &pyRXPParserType))) return NULL;
 	self->warnCB = self->eoCB = self->ucrCB = self->fourth = self->srcName = NULL;
-#ifdef isPy3
 	self->__module__ = module;
-#endif
 	if(!(self->srcName=PyBytes_FromString("[unknown]"))){
 		PyErr_SetString(MSTATE(module,moduleError),"Internal error, memory limit reached!");
 Lfree:	pyRXPParserFree(self);
