@@ -48,6 +48,8 @@ if __name__=='__main__': #NO RUNTESTS
 								library_dirs=[],
 								# libraries to link against
 								libraries=LIBS,
+								#uncomment when debugging
+								#extra_compile_args=['/Zi'], extra_link_args=['/DEBUG'],
 								),
 					]
 

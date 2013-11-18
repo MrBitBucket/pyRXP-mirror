@@ -215,8 +215,8 @@ The python module exports the following\n\
         eoCB    argument should be None or a callable method with\n\
             a single argument. This method will be called when external\n\
             entities are opened. The method should return a possibly\n\
-            modified URI or a tuple containing a tuple (URI,'text...') to allow\
-			the content itself to be returned. The possibly changed URI\
+            modified URI or a tuple containing a tuple (URI,'text...') to allow\n\
+			the content itself to be returned. The possibly changed URI\n\
 			is required.\n\
         ugeCB    argument should be None or a callable method with\n\
             a single argument. This method will be called when undefined\n\
