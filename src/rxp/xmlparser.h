@@ -37,7 +37,7 @@ typedef struct parser_state *Parser;
 typedef struct attribute *Attribute;
 typedef struct xbit *XBit;
 typedef void CallbackProc(XBit bit, void *arg);
-typedef Char *UCRProc(Char *name, int namelen, void *arg);
+typedef Char *UGEProc(Char *name, int namelen, void *arg);
 typedef InputSource EntityOpenerProc(Entity e, void *arg);
 
 /* Bits */
@@ -206,8 +206,8 @@ struct parser_state {
     NF16Checker checker;
     NF16Checker namechecker;    /* entity name and replacement text
                                    checking overlap */
-    UCRProc *ucr_proc;	/*undefined character ref callback*/
-    void *ucr_proc_arg;
+    UGEProc *uge_proc;	/*undefined character ref callback*/
+    void *uge_proc_arg;
 };
 
 XML_API int init_parser(void);
@@ -235,8 +235,8 @@ XML_API void ParserSetEntityOpener(Parser p, EntityOpenerProc opener);
 XML_API void ParserSetDtdCallbackArg(Parser p, void *arg);
 XML_API void ParserSetWarningCallbackArg(Parser p, void *arg);
 XML_API void ParserSetEntityOpenerArg(Parser p, void *arg);
-XML_API void ParserSetUCRProc(Parser p, UCRProc cb);
-XML_API void ParserSetUCRProcArg(Parser p, void *arg);
+XML_API void ParserSetUGEProc(Parser p, UGEProc cb);
+XML_API void ParserSetUGEProcArg(Parser p, void *arg);
 
 XML_API int ParserPush(Parser p, InputSource source);
 XML_API void ParserPop(Parser p);

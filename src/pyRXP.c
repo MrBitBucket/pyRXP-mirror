@@ -43,7 +43,7 @@ struct module_state {
 
 typedef struct {
 	PyObject_HEAD
-	PyObject		*warnCB, *eoCB, *ucrCB, *srcName, *fourth, *__module__;
+	PyObject		*warnCB, *eoCB, *ugeCB, *srcName, *fourth, *__module__;
 	int				flags[2];
 	} pyRXPParserObject;
 
@@ -218,9 +218,9 @@ The python module exports the following\n\
             modified URI or a tuple containing a tuple (URI,'text...') to allow\
 			the content itself to be returned. The possibly changed URI\
 			is required.\n\
-        ucrCB    argument should be None or a callable method with\n\
+        ugeCB    argument should be None or a callable method with\n\
             a single argument. This method will be called when undefined\n\
-            character references are seen. The method should return a byte string\n\
+            general entity references are seen. The method should return a byte string\n\
 			containing the definition of the entity\
 \n""\
         fourth  argument should be None (default) or a callable method with\n\
@@ -416,7 +416,7 @@ typedef	struct {
 		int			warnErr;
 		PyObject*	warnCB;
 		PyObject*	eoCB;
-		PyObject*	ucrCB;
+		PyObject*	ugeCB;
 		PyObject*	fourth;
 		PyObject*	(*Node_New)(ssize_t);
 		int			(*SetItem)(PyObject*, Py_ssize_t, PyObject*);
@@ -823,7 +823,7 @@ static void myWarnCB(XBit bit, void *info)
 		}
 }
 
-static Char *myUCRCB(Char *name, int namelen, void *info)
+static Char *myUGECB(Char *name, int namelen, void *info)
 {
 	ParserDetails*	pd=(ParserDetails*)info;
 	PyObject	*arglist;
@@ -835,12 +835,12 @@ static Char *myUCRCB(Char *name, int namelen, void *info)
 	int			err, ir;
 	unsigned char	*s;
 
-	if(pd->ucrCB==Py_None) return r;
+	if(pd->ugeCB==Py_None) return r;
 	uname = PyUnicode_DecodeUTF16((const char *)name, (Py_ssize_t)(sizeof(Char)*namelen), NULL, &g_byteorder);
 	if(!uname) return r;
 	arglist = Py_BuildValue("(O)",uname);
 	Py_DECREF(uname);
-	result = PyEval_CallObject(pd->ucrCB, arglist);
+	result = PyEval_CallObject(pd->ugeCB, arglist);
 	Py_DECREF(arglist);
 	if(result){
 		if(PyBytes_Check(result)){
@@ -912,7 +912,7 @@ static int pyRXPParser_setattr(pyRXPParserObject *self, char *name, PyObject* va
 
 	if(!strcmp(name,"warnCB")) return _set_CB(name,&self->warnCB,value);
 	else if(!strcmp(name,"eoCB")) return _set_CB(name,&self->eoCB,value);
-	else if(!strcmp(name,"ucrCB")) return _set_CB(name,&self->ucrCB,value);
+	else if(!strcmp(name,"ugeCB")) return _set_CB(name,&self->ugeCB,value);
 	else if(!strcmp(name,"fourth")){
 		if(value==PPSTATE(self,recordLocation)){
 			return _set_attr(&self->fourth,value);
@@ -978,7 +978,7 @@ static PyObject* pyRXPParser_parse(pyRXPParserObject* xself, PyObject* args, PyO
 #endif
 	if(self->warnCB) Py_INCREF(self->warnCB);
 	if(self->eoCB) Py_INCREF(self->eoCB);
-	if(self->ucrCB) Py_INCREF(self->ucrCB);
+	if(self->ugeCB) Py_INCREF(self->ugeCB);
 	if(self->fourth) Py_INCREF(self->fourth);
 	if(self->srcName) Py_INCREF(self->srcName);
 
@@ -1012,11 +1012,11 @@ static PyObject* pyRXPParser_parse(pyRXPParserObject* xself, PyObject* args, PyO
 		CB.warnErr = 0;
 		CB.warnCBF = 0;
 		}
-	if(self->ucrCB && self->ucrCB!=Py_None){
+	if(self->ugeCB && self->ugeCB!=Py_None){
 		CB.eoCB = self->eoCB;
 		}
-	if(self->ucrCB && self->ucrCB!=Py_None){
-		CB.ucrCB = self->ucrCB;
+	if(self->ugeCB && self->ugeCB!=Py_None){
+		CB.ugeCB = self->ugeCB;
 		}
 	CB.fourth = self->fourth;
 
@@ -1026,9 +1026,9 @@ static PyObject* pyRXPParser_parse(pyRXPParserObject* xself, PyObject* args, PyO
 	if(self->warnCB && self->warnCB!=Py_None){
 		ParserSetWarningCallback(p, myWarnCB);
 		}
-	if(self->ucrCB && self->ucrCB!=Py_None){
-		ParserSetUCRProcArg(p, &CB);
-		ParserSetUCRProc(p, myUCRCB);
+	if(self->ugeCB && self->ugeCB!=Py_None){
+		ParserSetUGEProcArg(p, &CB);
+		ParserSetUGEProc(p, myUGECB);
 		}
 	p->flags[0] = self->flags[0];
 	p->flags[1] = self->flags[1];
@@ -1069,7 +1069,7 @@ L_1:
 	Py_XDECREF(dsrc);
 	Py_XDECREF(self->warnCB);
 	Py_XDECREF(self->eoCB);
-	Py_XDECREF(self->ucrCB);
+	Py_XDECREF(self->ugeCB);
 	Py_XDECREF(self->fourth);
 	Py_XDECREF(self->srcName);
 	return retVal;
@@ -1157,7 +1157,7 @@ static pyRXPParserObject* pyRXPParser(PyObject* module, PyObject* args, PyObject
 
 	if(!PyArg_ParseTuple(args, ":Parser")) return NULL;
 	if(!(self = PyObject_NEW(pyRXPParserObject, &pyRXPParserType))) return NULL;
-	self->warnCB = self->eoCB = self->ucrCB = self->fourth = self->srcName = NULL;
+	self->warnCB = self->eoCB = self->ugeCB = self->fourth = self->srcName = NULL;
 #ifdef isPy3
 	self->__module__ = module;
 #else
