@@ -73,6 +73,7 @@ PyObject *RLPy_FindMethod(PyMethodDef *ml, PyObject *self, const char* name){
 #	define Py_FindMethod RLPy_FindMethod
 #	define KEY2STR(key) PyUnicode_AsUTF8(key)
 #else
+	static	PyObject *g_module;
 	static struct module_state _state;
 #	define GETSTATE(m) (&_state)
 #	define MSTATE(m,n) GETSTATE(m)->n
@@ -1157,7 +1158,11 @@ static pyRXPParserObject* pyRXPParser(PyObject* module, PyObject* args, PyObject
 	if(!PyArg_ParseTuple(args, ":Parser")) return NULL;
 	if(!(self = PyObject_NEW(pyRXPParserObject, &pyRXPParserType))) return NULL;
 	self->warnCB = self->eoCB = self->ucrCB = self->fourth = self->srcName = NULL;
+#ifdef isPy3
 	self->__module__ = module;
+#else
+	self->__module__ = g_module;
+#endif
 	if(!(self->srcName=PyBytes_FromString("[unknown]"))){
 		PyErr_SetString(MSTATE(module,moduleError),"Internal error, memory limit reached!");
 Lfree:	pyRXPParserFree(self);
@@ -1252,13 +1257,16 @@ DL_EXPORT(void) MODULEINIT(void)
 #endif
 
 #ifndef isPy3
-	/*set up the types by hand*/
-	pyRXPParserType.ob_type = &PyType_Type;
+	if(PyType_Ready(&pyRXPParserType)<0)goto err;	/*set up the types by hand*/
 #endif
 
 	/* Create the module and add the functions */
 	m = CREATE_MODULE();
     if(!m)goto err;
+
+#ifndef isPy3
+	g_module = m;
+#endif
 
 	/* Add some symbolic constants to the module */
 	moduleVersion = PyBytes_FromString(VERSION);
