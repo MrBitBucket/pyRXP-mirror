@@ -758,7 +758,7 @@ void ParserSetEntityOpener(Parser p, EntityOpenerProc opener)
     p->entity_opener = opener;
 }
 
-void ParserSetUGEProc(Parser p, CallbackProc cb)
+void ParserSetUGEProc(Parser p, UGEProc cb)
 {
     p->uge_proc = cb;
 }
