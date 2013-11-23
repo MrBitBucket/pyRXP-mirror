@@ -833,7 +833,7 @@ static Char *myUGECB(Char *name, int namelen, void *info)
 	Char		*r=NULL;
 	Py_ssize_t	sz;
 	int			err, ir;
-	unsigned char	*s;
+	const char	*s;
 
 	if(pd->ugeCB==Py_None) return r;
 	uname = PyUnicode_DecodeUTF16((const char *)name, (Py_ssize_t)(sizeof(Char)*namelen), NULL, &g_byteorder);
@@ -855,7 +855,7 @@ static Char *myUGECB(Char *name, int namelen, void *info)
 			if(PyUnicode_Check(result)){
 				bytes=PyUnicode_AsEncodedString(result, g_encname, "strict");
 				if(bytes){
-					err = PyBytes_AsStringAndSize(bytes,&s,&sz);
+					err = PyBytes_AsStringAndSize(bytes,(char **)&s,&sz);
 					if(!err){
 						/*at last we got a bunch of bytes in our encoding*/
 						r = (Char*)Malloc(sz+sizeof(Char));
