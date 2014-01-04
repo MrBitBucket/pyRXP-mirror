@@ -972,7 +972,7 @@ static PyObject* pyRXPParser_parse(pyRXPParserObject* xself, PyObject* args, PyO
 	Entity		e;
 	pyRXPParserObject	dummy = *xself;
 	pyRXPParserObject*	self = &dummy;
-	memset(&CB,sizeof(CB),0);
+	memset(&CB,0,sizeof(CB));
 #ifdef	isPy3
 	CB.__self__ = self;
 #endif
