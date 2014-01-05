@@ -1012,7 +1012,7 @@ static PyObject* pyRXPParser_parse(pyRXPParserObject* xself, PyObject* args, PyO
 		CB.warnErr = 0;
 		CB.warnCBF = 0;
 		}
-	if(self->ugeCB && self->ugeCB!=Py_None){
+	if(self->eoCB && self->eoCB!=Py_None){
 		CB.eoCB = self->eoCB;
 		}
 	if(self->ugeCB && self->ugeCB!=Py_None){
