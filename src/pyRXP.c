@@ -653,20 +653,25 @@ static	int handle_bit(Parser p, XBit bit, PyObject *stack[],int *depth)
 static InputSource entity_open(Entity e, void *info)
 {
 	ParserDetails*	pd = (ParserDetails*)info;
-	PyObject	*eoCB = pd->eoCB, *text=NULL;
+	PyObject	*eoCB = pd->eoCB, *text=NULL, *tmp;
 
 	if(e->type==ET_external){
-		PyObject		*arglist;
-		PyObject		*result;
+		PyObject	*arglist,*result;
 		arglist = Py_BuildValue("(s)",e->systemid);	/*NB 8 bit*/
 		result = PyEval_CallObject(eoCB, arglist);
 		if(result){
-			int isTuple=0;
-			if(PyBytes_Check(result)||(isTuple=PyTuple_Check(result))){
-				int	i;
-				PyObject_Cmp(PyTuple_GET_ITEM(arglist,0),result,&i);
-				if(i){
-					/*not the same*/
+			int	i=PyObject_Cmp(PyTuple_GET_ITEM(arglist,0),result,&i);
+			if(i){
+				int isTuple=isTuple=PyTuple_Check(result), isBytes=PyBytes_Check(result);
+				if(!(isBytes||isTuple)&&PyUnicode_Check(result)){
+					tmp = PyUnicode_AsEncodedString(result,"utf8","strict");
+					if(tmp){
+						Py_DECREF(result);
+						result = tmp;
+						isBytes = 1;
+						}
+					}
+				if(isBytes||isTuple){
 					CFree((void *)e->systemid);
 					if(isTuple){
 						e->systemid = strdup8(PyBytes_AS_STRING(PyTuple_GET_ITEM(result,0)));
@@ -686,8 +691,27 @@ static InputSource entity_open(Entity e, void *info)
 		Py_DECREF(arglist);
 		}
 	if(text){
-		int textlen = PyBytes_Size(text);
-		char *buf = Malloc(textlen);
+		int textlen;
+		char *buf;
+		if(PyUnicode_Check(text)){
+			tmp = PyUnicode_AsEncodedString(text,"utf8","strict");
+			if(tmp){
+				Py_DECREF(text);
+				text = tmp;
+				}
+			else {
+				PyErr_SetString(PDSTATE(pd,moduleError),"eoCB could not convert tuple text value");
+				Py_DECREF(text);
+				return NULL;
+				}
+			}
+		else if(!PyBytes_Check(text)){
+			PyErr_SetString(PDSTATE(pd,moduleError),"eoCB returned tuple with non-text value");
+			Py_DECREF(text);
+			return NULL;
+			}
+		textlen = PyBytes_Size(text);
+		buf = Malloc(textlen);
 		FILE16 *f16;
 		memcpy(buf,PyBytes_AS_STRING(text),textlen);
 		f16 = MakeFILE16FromString(buf, textlen, "r");
