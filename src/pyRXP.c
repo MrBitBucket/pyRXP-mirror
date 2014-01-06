@@ -693,6 +693,7 @@ static InputSource entity_open(Entity e, void *info)
 	if(text){
 		int textlen;
 		char *buf;
+		FILE16 *f16;
 		if(PyUnicode_Check(text)){
 			tmp = PyUnicode_AsEncodedString(text,"utf8","strict");
 			if(tmp){
@@ -712,7 +713,6 @@ static InputSource entity_open(Entity e, void *info)
 			}
 		textlen = PyBytes_Size(text);
 		buf = Malloc(textlen);
-		FILE16 *f16;
 		memcpy(buf,PyBytes_AS_STRING(text),textlen);
 		f16 = MakeFILE16FromString(buf, textlen, "r");
 		SetCloseUnderlying(f16,1);
