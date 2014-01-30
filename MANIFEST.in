@@ -1,2 +1,1 @@
-include README.rst test/* docs/*
-recursive include src
+include README.rst test/* docs/* src/* src/rxp/* src/rxp/iso-8859/*
