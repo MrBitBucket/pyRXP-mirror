@@ -35,3 +35,6 @@ syntax: glob
 build
 __pycache__
 *.pyd
+
+syntax: regexp
+^MANIFEST$
