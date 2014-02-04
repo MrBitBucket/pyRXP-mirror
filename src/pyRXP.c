@@ -660,27 +660,24 @@ static InputSource entity_open(Entity e, void *info)
 		arglist = Py_BuildValue("(s)",e->systemid);	/*NB 8 bit*/
 		result = PyEval_CallObject(eoCB, arglist);
 		if(result){
-			int	i=PyObject_Cmp(PyTuple_GET_ITEM(arglist,0),result,&i);
-			if(i){
-				int isTuple=isTuple=PyTuple_Check(result), isBytes=PyBytes_Check(result);
-				if(!(isBytes||isTuple)&&PyUnicode_Check(result)){
-					tmp = PyUnicode_AsEncodedString(result,"utf8","strict");
-					if(tmp){
-						Py_DECREF(result);
-						result = tmp;
-						isBytes = 1;
-						}
+			int isTuple=PyTuple_Check(result), isBytes=PyBytes_Check(result);
+			if(!(isBytes||isTuple)&&PyUnicode_Check(result)){
+				tmp = PyUnicode_AsEncodedString(result,"utf8","strict");
+				if(tmp){
+					Py_DECREF(result);
+					result = tmp;
+					isBytes = 1;
 					}
-				if(isBytes||isTuple){
-					CFree((void *)e->systemid);
-					if(isTuple){
-						e->systemid = strdup8(PyBytes_AS_STRING(PyTuple_GET_ITEM(result,0)));
-						text = PyTuple_GET_ITEM(result,1);
-						Py_INCREF(text);
-						}
-					else{
-						e->systemid = strdup8(PyBytes_AS_STRING(result));
-						}
+				}
+			if(isBytes||isTuple){
+				CFree((void *)e->systemid);
+				if(isTuple){
+					e->systemid = strdup8(PyBytes_AS_STRING(PyTuple_GET_ITEM(result,0)));
+					text = PyTuple_GET_ITEM(result,1);
+					Py_INCREF(text);
+					}
+				else{
+					e->systemid = strdup8(PyBytes_AS_STRING(result));
 					}
 				}
 			Py_DECREF(result);
@@ -739,6 +736,7 @@ void PyErr_FromStderr(Parser p, char *msg){
 	if(p->errbuf) Fprintf(Stderr,"%s\n", p->errbuf);
 	Fprintf(Stderr,"%s\n", msg);
 	t = PyUnicode_Decode(buf, ((struct _FILE16*)Stderr)->handle2, "utf16", NULL);
+	if(!t) return;
 	PyErr_SetObject(PSTATE(p,moduleError),t);
 	Py_DECREF(t);
 #endif
