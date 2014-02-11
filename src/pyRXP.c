@@ -670,15 +670,29 @@ static InputSource entity_open(Entity e, void *info)
 					}
 				}
 			if(isBytes||isTuple){
-				CFree((void *)e->systemid);
+				void *esid=(void *)(e->systemid);
 				if(isTuple){
-					e->systemid = strdup8(PyBytes_AS_STRING(PyTuple_GET_ITEM(result,0)));
+					tmp = PyTuple_GET_ITEM(result,0);
+					if(PyUnicode_Check(tmp)){
+						tmp = PyUnicode_AsEncodedString(tmp,"utf8","strict");
+						if(!tmp){
+							PyErr_SetString(PDSTATE(pd,moduleError),"eoCB could not convert tuple URI (element 0) from unicode");
+L_err0:						Py_DECREF(result);
+							return NULL;
+							}
+						}
+					else if(!PyBytes_Check(tmp)){
+						PyErr_SetString(PDSTATE(pd,moduleError),"eoCB could not convert tuple URI (element 0) from unknown type");
+						goto L_err0;
+						}
+					e->systemid = strdup8(PyBytes_AS_STRING(tmp));
 					text = PyTuple_GET_ITEM(result,1);
 					Py_INCREF(text);
 					}
 				else{
 					e->systemid = strdup8(PyBytes_AS_STRING(result));
 					}
+				CFree(esid);
 				}
 			Py_DECREF(result);
 			}
@@ -735,7 +749,7 @@ void PyErr_FromStderr(Parser p, char *msg){
 	PyObject* t;
 	if(p->errbuf) Fprintf(Stderr,"%s\n", p->errbuf);
 	Fprintf(Stderr,"%s\n", msg);
-	t = PyUnicode_Decode(buf, ((struct _FILE16*)Stderr)->handle2, "utf16", NULL);
+	t = PyUnicode_DecodeUTF16((const char *)buf, (Py_ssize_t)(((struct _FILE16*)Stderr)->handle2), NULL, &g_byteorder);
 	if(!t) return;
 	PyErr_SetObject(PSTATE(p,moduleError),t);
 	Py_DECREF(t);
