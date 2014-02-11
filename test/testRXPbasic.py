@@ -1,4 +1,5 @@
-import traceback, sys
+from __future__ import unicode_literals
+import traceback, sys, os
 _pyRXP = None
 _logf = open('pyRXP_test.log','w')
 _bad = 0
@@ -63,6 +64,39 @@ def failTest(x,t,tb=1,inOnly=0,**kw):
 def bigDepth(n):
 	return n and '<tag%d>%s</tag%d>' % (n,bigDepth(n-1),n) or 'middle'
 
+def getHere():
+	if __name__=='__main__':
+		here = sys.argv[0]
+	else:
+		here = __file__
+	here = os.path.dirname(here)
+	cwd = os.getcwd()
+	if not here:
+		here = cwd
+	else:
+		try:
+			os.chdir(here)
+			here = os.getcwd()
+		finally:
+			os.chdir(cwd)
+	return here
+
+with open(os.path.join(getHere(),'is-there.dtd'),'rb') as f:
+	have_utf8_content_dtd = f.read()
+have_unicode_content_dtd = have_utf8_content_dtd.decode('utf8')
+
+DTDs = 	{
+		'is-there.dtd': 'is-there.dtd',
+		'not-there.dtd': 'really-not-there.dtd',
+		'have-utf8-content.dtd': ('have-utf8-content.dtd-uri',have_utf8_content_dtd),
+		'have-unicode-content.dtd': ('have-unicode-content.dtd-uri',have_unicode_content_dtd),
+		'badt-have-utf8-content.dtd': (1,have_utf8_content_dtd),
+		'badt-have-unicode-content.dtd': (1,have_unicode_content_dtd),
+		}
+
+def eoDTD(s):
+	return DTDs.get(os.path.basename(s),None)
+
 def _runTests(pyRXP):
 	global _pyRXP
 	_pyRXP = pyRXP
@@ -110,6 +144,16 @@ def _runTests(pyRXP):
 	failTest(bigDepth(257),"""error Internal error, stack limit reached!\n""", inOnly=1)
 	failTest('<a>&Aacute;&aacute;</a>','error Error: Undefined entity Aacute\n in unnamed entity at line 1 char 12 of [unknown]\nUndefined entity Aacute\nParse Failed!\n')
 	goodTest('<a>&Aacute;</a>',('a', None, ['\xc1'], None), ugeCB=ugeCB)
+	failTest('<!DOCTYPE foo SYSTEM "not-there.dtd"><foo>foo<a>aaa</a>fum</foo>',"error Error: Couldn't open dtd entity file:///C:/code/hg-repos/pyRXP/test/not-there.dtd\\n in unnamed entity at line 1 char 38 of [unknown]\\nCouldn't open dtd entity file:///C:/code/hg-repos/pyRXP/test/not-there.dtd\\nParse Failed!\\n",NoNoDTDWarning=0)
+	failTest('<!DOCTYPE foo SYSTEM "is-there.dtd"><foo><a>aaa</a></foo>','error Error: Content model for foo does not allow it to end here\\n in unnamed entity at line 1 char 57 of [unknown]\\nContent model for foo does not allow it to end here\\nParse Failed!\\n',NoNoDTDWarning=0)
+	goodTest('<!DOCTYPE foo SYSTEM "is-there.dtd"><foo><a>aaa</a><b>bbbb</b></foo>',('foo', None, [('a', None, ['aaa'], None), ('b', None, ['bbbb'], None)], None),NoNoDTDWarning=0)
+	failTest('<!DOCTYPE foo SYSTEM "is-there.dtd"><foo><a>aaa</a></foo>','error Error: Content model for foo does not allow it to end here\\n in unnamed entity at line 1 char 57 of [unknown]\\nContent model for foo does not allow it to end here\\nParse Failed!\\n',NoNoDTDWarning=0,eoCB=eoDTD)
+	goodTest('<!DOCTYPE foo SYSTEM "is-there.dtd"><foo><a>aaa</a><b>bbbb</b></foo>',('foo', None, [('a', None, ['aaa'], None), ('b', None, ['bbbb'], None)], None),NoNoDTDWarning=0,eoCB=eoDTD)
+	goodTest('<!DOCTYPE foo SYSTEM "have-utf8-content.dtd"><foo><a>aaa</a><b>bbbb</b></foo>',('foo', None, [('a', None, ['aaa'], None), ('b', None, ['bbbb'], None)], None),NoNoDTDWarning=0,eoCB=eoDTD)
+	goodTest('<!DOCTYPE foo SYSTEM "have-unicode-content.dtd"><foo><a>aaa</a><b>bbbb</b></foo>',('foo', None, [('a', None, ['aaa'], None), ('b', None, ['bbbb'], None)], None),NoNoDTDWarning=0,eoCB=eoDTD)
+	failTest('<!DOCTYPE foo SYSTEM "not-there.dtd"><foo>foo<a>aaa</a>fum</foo>',"error Error: Couldn't open dtd entity file:///C:/code/hg-repos/pyRXP/test/really-not-there.dtd\\n in unnamed entity at line 1 char 38 of [unknown]\\nCouldn't open dtd entity file:///C:/code/hg-repos/pyRXP/test/really-not-there.dtd\\nParse Failed!\\n",NoNoDTDWarning=0,eoCB=eoDTD)
+	failTest('<!DOCTYPE foo SYSTEM "badt-have-utf8-content.dtd"><foo><a>aaa</a><b>bbbb</b></foo>',"error Error: Couldn't open dtd entity badt-have-utf8-content.dtd\\n in unnamed entity at line 1 char 51 of [unknown]\\nCouldn't open dtd entity badt-have-utf8-content.dtd\\nParse Failed!\\n",NoNoDTDWarning=0,eoCB=eoDTD)
+	failTest('<!DOCTYPE foo SYSTEM "badt-have-unicode-content.dtd"><foo><a>aaa</a><b>bbbb</b></foo>',"error Error: Couldn't open dtd entity badt-have-unicode-content.dtd\\n in unnamed entity at line 1 char 54 of [unknown]\\nCouldn't open dtd entity badt-have-unicode-content.dtd\\nParse Failed!\\n",NoNoDTDWarning=0,eoCB=eoDTD)
 
 def run():
 	#import pyRXP
