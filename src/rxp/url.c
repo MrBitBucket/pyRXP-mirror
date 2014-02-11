@@ -539,7 +539,7 @@ static FILE16 *file_open(const char *url,
     f = fopen(file, type);
     if(!f)
     {
-	perror(file);
+	/*perror(file);*/
 	Free(file);
 	return 0;
     }
