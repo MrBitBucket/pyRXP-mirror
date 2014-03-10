@@ -118,6 +118,19 @@ def _runTests(pyRXP):
 		plogn('Parser().parse keywords BAD')
 		_dot('E')
 
+	try:
+		P=_pyRXP.Parser()
+		plog('Parser()=%r' % P)
+		plog('Parser().__class__=%r' % P.__class__)
+		plog('type(Parser())=%r\n\n' % type(P))
+		del P
+		plogn('Parser().__class__ etc OK')
+		_dot('.')
+	except:
+		traceback.print_exc()
+		plogn('Parser().__class__ etc BAD')
+		_dot('E')
+
 	goodTest('<a></a>',('a', None, [], None))
 	goodTest('<a></a>',('a', {}, [], None),ExpandEmpty=1)
 	goodTest('<a></a>',['a', None, [], None],MakeMutableTree=1)
