@@ -9,7 +9,10 @@ if __name__=='__main__': #NO RUNTESTS
 		pkgDir=os.getcwd()
 	elif not os.path.isabs(pkgDir):
 		pkgDir=os.path.abspath(pkgDir)
-	from distutils.core import setup, Extension
+	try:
+		from setuptools import setup, Extension
+	except ImportError:
+		from distutils.core import setup, Extension
 
 	def raiseConfigError(msg):
 		import exceptions 
