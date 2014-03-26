@@ -1,10 +1,10 @@
 /****************************************************************************
-#Copyright ReportLab Europe Ltd. 2000-2004
-#see license.txt for license details
-#history http://www.reportlab.co.uk/cgi-bin/viewcvs.cgi/public/reportlab/trunk/rl_addons/pyRXP/pyRXP.c
+Copyright ReportLab Europe Ltd. 2000-2013 see license.txt for license details
  ****************************************************************************/
-#define svnId " $Id$ "
 #include <Python.h>
+#if PY_MAJOR_VERSION >= 3
+#	define isPy3
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -21,15 +21,82 @@
 #include "stdio16.h"
 #include "version.h"
 #include "namespaces.h"
-#define VERSION "1.16"
+#define VERSION "2.1.0"
 #define MAX_DEPTH 256
 #if PY_VERSION_HEX < 0x02050000
 #	define Py_ssize_t int
 #endif
 
+static	int	g_byteorder;
+static	char *g_encname;
+
+struct module_state {
+	PyObject *moduleError;
+	PyObject *moduleVersion;
+	PyObject *RXPVersion;
+	PyObject *commentTagName;
+	PyObject *piTagName;
+	PyObject *CDATATagName;
+	PyObject *recordLocation;
+	PyObject *parser_flags;
+	PyObject *parser;
+	};
+
+typedef struct {
+	PyObject_HEAD
+	PyObject		*warnCB, *eoCB, *ugeCB, *srcName, *fourth, *__instance_module__;
+	int				flags[2];
+	} pyRXPParser;
+
+#ifdef isPy3
+#	define GETSTATE(m) ((struct module_state*)PyModule_GetState(m))
+#	define MSTATE(m,n) GETSTATE(m)->n
+#	define PPSTATE(p,n) MSTATE(((pyRXPParser *)p)->__instance_module__,n)
+#	define PDSTATE(pd,n) PPSTATE(((ParserDetails*)pd)->__self__,n)
+#	define PSTATE(p,n) PDSTATE(((Parser)p)->warning_callback_arg,n)
+#	define PyInt_FromLong	PyLong_FromLong
+#	define PyInt_AsLong	PyLong_AsLong
+#	define staticforward static
+#	define statichere static
+	/*cmp(a,b) = (a > b) - (a < b) in Python3*/
+#	define PyObject_Cmp(a,b,i) *i=(PyObject_RichCompareBool(a, b, Py_GT)-PyObject_RichCompareBool(a, b, Py_LT))
+#	define PyNumber_Int	PyNumber_Long
+PyObject *RLPy_FindMethod(PyMethodDef *ml, PyObject *self, const char* name){
+	for(;ml->ml_name!=NULL;ml++)
+		if(name[0]==ml->ml_name[0] && strcmp(name+1,ml->ml_name+1)==0) return PyCFunction_New(ml, self);
+	if(1){
+		char buf[128];
+		sprintf(buf,"attribute '%s' not found", name);
+		PyErr_SetString(PyExc_AttributeError, buf);
+		}
+	return NULL;
+	}
+#	define Py_FindMethod RLPy_FindMethod
+#	define KEY2STR(key) PyUnicode_AsUTF8(key)
+#else
+	static	PyObject *g_module;
+	static struct module_state _state;
+#	define GETSTATE(m) (&_state)
+#	define MSTATE(m,n) GETSTATE(m)->n
+#	define PPSTATE(p,n) MSTATE(p,n)
+#	define PDSTATE(pd,n) MSTATE(pd,n)
+#	define PSTATE(p,n) MSTATE(p,n)
+#	include "bytesobject.h"
+#	ifndef PyVarObject_HEAD_INIT
+#		define PyVarObject_HEAD_INIT(type, size) \
+			PyObject_HEAD_INIT(type) size,
+#	endif
+#	ifndef Py_TYPE
+#		define Py_TYPE(ob) (((PyObject*)(ob))->ob_type)
+#	endif
+#	define PyBytes_AS_STRING	PyString_AS_STRING
+#	define PyBytes_AsString	PyString_AsString
+#	define PyBytes_GET_SIZE		PyString_GET_SIZE
+#	define KEY2STR(key) PyBytes_AsString(key)
+#endif
+
 #if CHAR_SIZE==16
-#	define initpyRXP initpyRXPU
-#	define MODULE "pyRXPU"
+#	define MODULENAME "pyRXPU"
 #	define UTF8DECL ,int utf8
 #	define UTF8PASS ,utf8
 #	define PYNSNAME(nsed, name) PyNSName(nsed,name,utf8)
@@ -56,8 +123,7 @@ PyObject* PYSTRING8(const char* s)
 #	define EmptyCharStr (Char*)"\0"
 #	define FMTCHAR "u"
 #else
-#	define MODULE "pyRXP"
-#	define initpyRXP initpyRXP
+#	define MODULENAME "pyRXP"
 #	define UTF8DECL
 #	define UTF8PASS
 #	define PYNSNAME(nsed, name) PyNSName(nsed,name)
@@ -86,17 +152,15 @@ PyObject* PyNSName(NSElementDefinition nsed, const Char *name UTF8DECL){
 	if(t!=name) Free(t);
 	return r;
 	}
-static PyObject *moduleError;
-static PyObject *moduleVersion;
-static PyObject *RXPVersion;
-static PyObject *commentTagName;
-static PyObject *piTagName;
-static PyObject *CDATATagName;
-static PyObject *recordLocation;
-static PyObject *parser_flags;
-static char *moduleDoc =
+#if	CHAR_SIZE==16
+#	define __DOC__1 "		 ReturnUTF8 = 0\n\
+			Return UTF8 encoded strings rather than the default unicode\n"
+#else
+#	define __DOC__1 ""
+#endif
+PyDoc_STRVAR(__DOC__,
 "\n\
-This is " MODULE " a python wrapper for RXP, a validating namespace-aware XML parser\n\
+This is " MODULENAME " a python wrapper for RXP, a validating namespace-aware XML parser\n\
 in C.\n\
 \n\
 RXP was written by Richard Tobin at the Language Technology Group,\n\
@@ -113,172 +177,171 @@ from these recommendations should probably be considered as bugs.\n\
 Interface summary:\n\
 \n\
 The python module exports the following\n\
-    error           a python exception\n\
-    version         the string version of the module\n\
-    RXPVersion      the version string of the rxp library\n\
-                    embedded in the module\n\
-	_svnId			svn $Id$\n\
-    parser_flags    a dictionary of parser flags\n\
-                    the values are the defaults for parsers\n\
-    piTagName       special tagname used for processing instructions\n\
-    commenTagName   special tagname used for comments\n\
-    recordLocation  a special do nothing constant that can be used as\n\
-                    the 'fourth' argument and causes location information\n\
-                    to be recorded in the fourth position of each node.\n\
+	error			a python exception\n\
+	version			the string version of the module\n\
+	RXPVersion		the version string of the rxp library\n\
+					embedded in the module\n\
+	parser_flags	a dictionary of parser flags\n\
+					the values are the defaults for parsers\n\
+	piTagName		special tagname used for processing instructions\n\
+	commenTagName	special tagname used for comments\n\
+	recordLocation	a special do nothing constant that can be used as\n\
+					the 'fourth' argument and causes location information\n\
+					to be recorded in the fourth position of each node.\n\
 \n\
 \n\
-    Parser(*kw)     Create a parser\n\
+	Parser(*kw)		Class that creates a parser\n\
 \n\
 \n\
-    Parser Attributes and Methods\n\
-        parse(src,**kw)\n\
-            The main interface to the parser. It returns Aaron Watter's\n\
-            radxml encoding of the xml src.\n\
-            The string src contains the xml.\n\
-            The keyword arguments can modify the instance attributes\n\
-            for this call only.\n\
-            The __call__ attribute of Parser instances is equivalent to\n\
-            the parse attribute.\n\
+	Parser Attributes and Methods\n\
+		parse(src,**kw)\n\
+			The main interface to the parser. It returns Aaron Watter's\n\
+			radxml encoding of the xml src.\n\
+			The string src contains the xml.\n\
+			The keyword arguments can modify the instance attributes\n\
+			for this call only.\n\
+			The __call__ attribute of Parser instances is equivalent to\n\
+			the parse attribute.\n\
 \n\
-        srcName '[unknown]', name used to refer to the parser src\n\
-            in error and warning messages.\n\
+		srcName '[unknown]', name used to refer to the parser src\n\
+			in error and warning messages.\n\
 \n""\
-        warnCB  0, should either be None, 0, or a\n\
-            callable method with a single argument which will\n\
-            receive warning messages. If None is used then warnings\n\
-            are thrown away. If the default 0 value is used then\n\
-            warnings are written to the internal error message buffer\n\
-            and will only be seen if an error occurs.\n\
+		warnCB	0, should either be None, 0, or a\n\
+			callable method with a single argument which will\n\
+			receive warning messages. If None is used then warnings\n\
+			are thrown away. If the default 0 value is used then\n\
+			warnings are written to the internal error message buffer\n\
+			and will only be seen if an error occurs.\n\
 \n\
-        eoCB    argument should be None or a callable method with\n\
-            a single argument. This method will be called when external\n\
-            entities are opened. The method should return a possibly\n\
-            modified URI or a tuple containing a tuple (URI,'text...') to allow\
-			the content itself to be returned. The possibly changed URI\
-			is required.\
+		eoCB	argument should be None or a callable method with\n\
+			a single argument. This method will be called when external\n\
+			entities are opened. The method should return a possibly\n\
+			modified URI or a tuple containing a tuple (URI,'text...') to allow\n\
+			the content itself to be returned. The possibly changed URI\n\
+			is required.\n\
+		ugeCB	 argument should be None or a callable method with\n\
+			a single argument. This method will be called when undefined\n\
+			general entity references are seen. The method should return a byte string\n\
+			containing the definition of the entity\
 \n""\
-        fourth  argument should be None (default) or a callable method with\n\
-            no arguments. If callable, will be called to get or generate the\n\
-            4th item of every 4-item tuple or list in the returned tree.\n\
-            May also be the special value pyRXP.recordLocation in which\n\
-            case the 4th item is set to the tuple\n\
-            ((startsrc,startline,startchar),(endsrc,endline,endchar)).\n\
+		fourth	argument should be None (default) or a callable method with\n\
+			no arguments. If callable, will be called to get or generate the\n\
+			4th item of every 4-item tuple or list in the returned tree.\n\
+			May also be the special value pyRXP.recordLocation in which\n\
+			case the 4th item is set to the tuple\n\
+			((startsrc,startline,startchar),(endsrc,endline,endchar)).\n\
 \n\
-        Flag attributes corresponding to the rxp flags;\n\
-            the values are the module standard defaults.\n\
-        ExpandCharacterEntities = 1\n\
-        ExpandGeneralEntities = 1\n\
-            If these are set, entity references are expanded.  If not, the\n\
-            references are treated as text, in which case any text returned that\n\
-            starts with an ampersand must be an entity reference (and provided\n\
-            MergePCData is off, all entity references will be returned as separate\n\
-            pieces).\n\
-        XMLSyntax = 1\n\
-        XMLPredefinedEntities = 1\n\
-        ErrorOnUnquotedAttributeValues = 1\n\
-        NormaliseAttributeValues = 1\n\
-            If this is set, attributes are normalised according to the standard.\n\
-            You might want to not normalise if you are writing something like an\n\
-            editor.\n\
-        ErrorOnBadCharacterEntities = 1\n\
-            If this is set, character entities which expand to illegal values are\n\
-            an error, otherwise they are ignored with a warning.\n\
-        ErrorOnUndefinedEntities = 1\n\
-            If this is set, undefined general entity references are an error,\n\
-            otherwise a warning is given and a fake entity constructed whose value\n\
-            looks the same as the entity reference.\n\
-        ReturnComments = 0\n\
-            If this is set, comments are returned, otherwise they are ignored.\n\
-        ReturnProcessingInstructions = 0\n\
-            If this is set, processing instructions are returned, otherwise\n\
-            they are ignored.\n\
-        CaseInsensitive = 0\n\
-        ErrorOnUndefinedElements = 0\n""\
-        ErrorOnUndefinedAttributes = 0\n\
-            If these are set and there is a DTD, references to undeclared elements\n\
-            and attributes are an error.\n\
-        WarnOnRedefinitions = 0\n\
-            If this is on, a warning is given for redeclared elements, attributes,\n\
-            entities and notations.\n\
-        TrustSDD = 1\n\
-        ProcessDTD = 0\n\
-            If TrustSDD is set and a DOCTYPE declaration is present, the internal\n\
-            part is processed and if the document was not declared standalone or\n\
-            if Validate is set the external part is processed.  Otherwise, whether\n\
-            the DOCTYPE is automatically processed depends on ProcessDTD; if\n\
-            ProcessDTD is not set the user must call ParseDtd() if desired.\n\
-        XMLExternalIDs = 1\n""\
-        ReturnDefaultedAttributes = 1\n\
-            If this is set, the returned attributes will include ones defaulted as\n\
-            a result of ATTLIST declarations, otherwise missing attributes will not\n\
-            be returned.\n\
-        MergePCData = 1\n\
-            If this is set, text data will be merged across comments and entity\n\
-            references.\n\
-        XMLMiscWFErrors = 1\n\
-        XMLStrictWFErrors = 1\n\
-            If this is set, various well-formedness errors will be reported as errors\n\
-            rather than warnings.\n\
-        AllowMultipleElements = 0\n\
-        MaintainElementStack = 1\n\
-        IgnoreEntities = 0\n\
-        XMLLessThan = 0\n\
-        IgnorePlacementErrors = 0\n""\
-        Validate = 1\n\
-            If this is on, the parser will validate the document.\n\
-        ErrorOnValidityErrors = 1\n\
-            If this is on, validity errors will be reported as errors rather than\n\
-            warnings.  This is useful if your program wants to rely on the\n\
-            validity of its input.\n\
-        XMLSpace = 0\n\
-            If this is on, the parser will keep track of xml:space attributes\n\
-        XMLNamespaces = 0\n\
-            If this is on, the parser processes namespace declarations (see\n\
-            below).  Namespace declarations are *not* returned as part of the list\n\
-            of attributes on an element. The namespace value will be prepended to names\n\
+		Flag attributes corresponding to the rxp flags;\n\
+			the values are the module standard defaults.\n\
+		ExpandCharacterEntities = 1\n\
+		ExpandGeneralEntities = 1\n\
+			If these are set, entity references are expanded.  If not, the\n\
+			references are treated as text, in which case any text returned that\n\
+			starts with an ampersand must be an entity reference (and provided\n\
+			MergePCData is off, all entity references will be returned as separate\n\
+			pieces).\n\
+		XMLSyntax = 1\n\
+		XMLPredefinedEntities = 1\n\
+		ErrorOnUnquotedAttributeValues = 1\n\
+		NormaliseAttributeValues = 1\n\
+			If this is set, attributes are normalised according to the standard.\n\
+			You might want to not normalise if you are writing something like an\n\
+			editor.\n\
+		ErrorOnBadCharacterEntities = 1\n\
+			If this is set, character entities which expand to illegal values are\n\
+			an error, otherwise they are ignored with a warning.\n\
+		ErrorOnUndefinedEntities = 1\n\
+			If this is set, undefined general entity references are an error,\n\
+			otherwise a warning is given and a fake entity constructed whose value\n\
+			looks the same as the entity reference.\n\
+		ReturnComments = 0\n\
+			If this is set, comments are returned, otherwise they are ignored.\n\
+		ReturnProcessingInstructions = 0\n\
+			If this is set, processing instructions are returned, otherwise\n\
+			they are ignored.\n\
+		CaseInsensitive = 0\n\
+		ErrorOnUndefinedElements = 0\n""\
+		ErrorOnUndefinedAttributes = 0\n\
+			If these are set and there is a DTD, references to undeclared elements\n\
+			and attributes are an error.\n\
+		WarnOnRedefinitions = 0\n\
+			If this is on, a warning is given for redeclared elements, attributes,\n\
+			entities and notations.\n\
+		TrustSDD = 1\n\
+		ProcessDTD = 0\n\
+			If TrustSDD is set and a DOCTYPE declaration is present, the internal\n\
+			part is processed and if the document was not declared standalone or\n\
+			if Validate is set the external part is processed.	Otherwise, whether\n\
+			the DOCTYPE is automatically processed depends on ProcessDTD; if\n\
+			ProcessDTD is not set the user must call ParseDtd() if desired.\n\
+		XMLExternalIDs = 1\n""\
+		ReturnDefaultedAttributes = 1\n\
+			If this is set, the returned attributes will include ones defaulted as\n\
+			a result of ATTLIST declarations, otherwise missing attributes will not\n\
+			be returned.\n\
+		MergePCData = 1\n\
+			If this is set, text data will be merged across comments and entity\n\
+			references.\n\
+		XMLMiscWFErrors = 1\n\
+		XMLStrictWFErrors = 1\n\
+			If this is set, various well-formedness errors will be reported as errors\n\
+			rather than warnings.\n\
+		AllowMultipleElements = 0\n\
+		MaintainElementStack = 1\n\
+		IgnoreEntities = 0\n\
+		XMLLessThan = 0\n\
+		IgnorePlacementErrors = 0\n""\
+		Validate = 1\n\
+			If this is on, the parser will validate the document.\n\
+		ErrorOnValidityErrors = 1\n\
+			If this is on, validity errors will be reported as errors rather than\n\
+			warnings.  This is useful if your program wants to rely on the\n\
+			validity of its input.\n\
+		XMLSpace = 0\n\
+			If this is on, the parser will keep track of xml:space attributes\n\
+		XMLNamespaces = 0\n\
+			If this is on, the parser processes namespace declarations (see\n\
+			below).  Namespace declarations are *not* returned as part of the list\n\
+			of attributes on an element. The namespace value will be prepended to names\n\
 			in the manner suggested by James Clark ie if xmlns:foo='foovalue'\n\
 			is active then foo:name-->{fovalue}name.\n\
-        NoNoDTDWarning = 1\n\
-            Usually, if Validate is set, the parser will produce a warning if the\n\
-            document has no DTD.  This flag suppresses the warning (useful if you\n\
-            want to validate if possible, but not complain if not).\n\
-        SimpleErrorFormat = 0\n""\
-        AllowUndeclaredNSAttributes = 0\n\
-        RelaxedAny = 0\n\
-        ReturnNamespaceAttributes = 0\n\
-        ReturnList = 0\n\
-            Usually we discard comments and want only one tag; set this to 1 to get\n\
-            a list at the top level instead of a supposed singleton tag.\n\
-            If 0 the first tuple in the list will be returned (ie the first tag tuple).\n\
-        ExpandEmpty false (default) or true.  If false, empty attribute dicts and\n\
-            empty lists of children are changed into the value None\n\
-            in every 4-item tuple or list in the returned tree\n\
-        MakeMutableTree false (default) or true.  If false, nodes in the returned tree\n\
-            are 4-item tuples; if true, 4-item lists.\n\
-        ReturnCDATASectionsAsTuples = 0\n\
-            If this is on, the parser returns for each CDATA section a tuple\n\
-            with name field equal to CDATATagName containing a single string\n\
-            in its third field that is the CDATA section.\n\
-        XML11CheckNF = 0\n\
-            If this is set the parser will check for unicode normalization and\n\
-            is only relevant with XML 1.1 documents.\n\
-        XML11CheckExists = 0\n\
-            Controls whether unknown characters are present. It is only effective\n\
-            when XML11CheckNF is set and the document is XML 1.1.\n\
-        XMLIDs = 0\n\
-            Check for xml:id attributes\n\
-        XMLIDCheckUnique = 0\n\
-            Ensure xml:id attributes are unique.\n"
-"        Pre105Chars = 1\n\
-            use pre XML 1.0 fifth edition charset\n\
-        Pre105VersionCheck = 1\n\
-            if 1 force unrecognized XML 1.x versions to 1.0\n"
-#if	CHAR_SIZE==16
-"        ReturnUTF8 = 0\n\
-            Return UTF8 encoded strings rather than the default unicode\n"
-
-#endif
-;
+		NoNoDTDWarning = 1\n\
+			Usually, if Validate is set, the parser will produce a warning if the\n\
+			document has no DTD.  This flag suppresses the warning (useful if you\n\
+			want to validate if possible, but not complain if not).\n\
+		SimpleErrorFormat = 0\n""\
+		AllowUndeclaredNSAttributes = 0\n\
+		RelaxedAny = 0\n\
+		ReturnNamespaceAttributes = 0\n\
+		ReturnList = 0\n\
+			Usually we discard comments and want only one tag; set this to 1 to get\n\
+			a list at the top level instead of a supposed singleton tag.\n\
+			If 0 the first tuple in the list will be returned (ie the first tag tuple).\n\
+		ExpandEmpty false (default) or true.  If false, empty attribute dicts and\n\
+			empty lists of children are changed into the value None\n\
+			in every 4-item tuple or list in the returned tree\n\
+		MakeMutableTree false (default) or true.  If false, nodes in the returned tree\n\
+			are 4-item tuples; if true, 4-item lists.\n\
+		ReturnCDATASectionsAsTuples = 0\n\
+			If this is on, the parser returns for each CDATA section a tuple\n\
+			with name field equal to CDATATagName containing a single string\n\
+			in its third field that is the CDATA section.\n\
+		XML11CheckNF = 0\n\
+			If this is set the parser will check for unicode normalization and\n\
+			is only relevant with XML 1.1 documents.\n\
+		XML11CheckExists = 0\n\
+			Controls whether unknown characters are present. It is only effective\n\
+			when XML11CheckNF is set and the document is XML 1.1.\n\
+		XMLIDs = 0\n\
+			Check for xml:id attributes\n\
+		XMLIDCheckUnique = 0\n\
+			Ensure xml:id attributes are unique.\n"
+"		 Pre105Chars = 1\n\
+			use pre XML 1.0 fifth edition charset\n\
+		Pre105VersionCheck = 1\n\
+			if 1 force unrecognized XML 1.x versions to 1.0\n"
+__DOC__1
+);
 
 /*alter the integer values to change the module defaults*/
 static struct {char* k;long v;} flag_vals[]={
@@ -354,6 +417,7 @@ typedef	struct {
 		int			warnErr;
 		PyObject*	warnCB;
 		PyObject*	eoCB;
+		PyObject*	ugeCB;
 		PyObject*	fourth;
 		PyObject*	(*Node_New)(ssize_t);
 		int			(*SetItem)(PyObject*, Py_ssize_t, PyObject*);
@@ -361,6 +425,9 @@ typedef	struct {
 		int			none_on_empty;
 #if	CHAR_SIZE==16
 		int			utf8;
+#endif
+#ifdef	isPy3
+		pyRXPParser*	__self__;	/*the associated parser object*/
 #endif
 		} ParserDetails;
 
@@ -436,7 +503,7 @@ static	PyObject* _makeNode(ParserDetails* pd, PyObject *pyName, PyObject* attr, 
 		attr = PyList_New(0);
 	PDSetItem(t,2,attr);
 	if(pd->fourth && pd->fourth!=Py_None){
-		if(pd->fourth==recordLocation){
+		if(pd->fourth==PDSTATE(pd,recordLocation)){
 			attr = PyTuple_New(2);
 			PyTuple_SET_ITEM(attr,0,_getSrcInfo(pd));
 			PyTuple_SET_ITEM(attr,1,Py_None);
@@ -513,7 +580,7 @@ static	int handle_bit(Parser p, XBit bit, PyObject *stack[],int *depth)
 				break;
 				}
 			t = stack[*depth];
-			if(pd->fourth==recordLocation){
+			if(pd->fourth==PDSTATE(pd,recordLocation)){
 				PyTuple_SET_ITEM(PDGetItem(t,3),1,_getSrcInfo(pd));
 				Py_DECREF(Py_None);
 				}
@@ -526,9 +593,9 @@ static	int handle_bit(Parser p, XBit bit, PyObject *stack[],int *depth)
 				s = PyDict_New();
 				PyDict_SetItemString(s, "name", t=PYSTRING(bit->pi_name));
 				Py_XDECREF(t);
-				t = _makeNodePD( pd, piTagName, s, 0);
-				if(pd->fourth==recordLocation) _reverseSrcInfoTuple(PyTuple_GET_ITEM(t,3));
-				Py_INCREF(piTagName);
+				t = _makeNodePD( pd, PDSTATE(pd,piTagName), s, 0);
+				if(pd->fourth==PDSTATE(pd,recordLocation)) _reverseSrcInfoTuple(PyTuple_GET_ITEM(t,3));
+				Py_INCREF(PDSTATE(pd,piTagName));
 				s = PYSTRING(bit->pi_chars);
 				PyList_Append(PDGetItem(t,2),s);
 				Py_XDECREF(s);
@@ -543,9 +610,9 @@ static	int handle_bit(Parser p, XBit bit, PyObject *stack[],int *depth)
 			break;
 		case XBIT_cdsect:
 			if(ParserGetFlag(p,ReturnCDATASectionsAsTuples)){
-				t = _makeNodePD( pd, CDATATagName,Py_None, 0);
-				if(pd->fourth==recordLocation) _reverseSrcInfoTuple(PyTuple_GET_ITEM(t,3));
-				Py_INCREF(CDATATagName);
+				t = _makeNodePD( pd, PDSTATE(pd,CDATATagName),Py_None, 0);
+				if(pd->fourth==PDSTATE(pd,recordLocation)) _reverseSrcInfoTuple(PyTuple_GET_ITEM(t,3));
+				Py_INCREF(PDSTATE(pd,CDATATagName));
 				Py_INCREF(Py_None);
 				s = PYSTRING(bit->cdsect_chars);
 				PyList_Append(PDGetItem(t,2),s);
@@ -563,10 +630,10 @@ static	int handle_bit(Parser p, XBit bit, PyObject *stack[],int *depth)
 			break;
 		case XBIT_comment:
 			if(ParserGetFlag(p,ReturnComments)){
-				t = _makeNodePD( pd, commentTagName, Py_None, 0);
-				if(pd->fourth==recordLocation) _reverseSrcInfoTuple(PyTuple_GET_ITEM(t,3));
+				t = _makeNodePD( pd, PDSTATE(pd,commentTagName), Py_None, 0);
+				if(pd->fourth==PDSTATE(pd,recordLocation)) _reverseSrcInfoTuple(PyTuple_GET_ITEM(t,3));
 				Py_INCREF(Py_None);
-				Py_INCREF(commentTagName);
+				Py_INCREF(PDSTATE(pd,commentTagName));
 				s = PYSTRING(bit->comment_chars);
 				PyList_Append(PDGetItem(t,2),s);
 				Py_XDECREF(s);
@@ -587,30 +654,46 @@ static	int handle_bit(Parser p, XBit bit, PyObject *stack[],int *depth)
 static InputSource entity_open(Entity e, void *info)
 {
 	ParserDetails*	pd = (ParserDetails*)info;
-	PyObject	*eoCB = pd->eoCB, *text=NULL;
+	PyObject	*eoCB = pd->eoCB, *text=NULL, *tmp;
 
 	if(e->type==ET_external){
-		PyObject		*arglist;
-		PyObject		*result;
+		PyObject	*arglist,*result;
 		arglist = Py_BuildValue("(s)",e->systemid);	/*NB 8 bit*/
 		result = PyEval_CallObject(eoCB, arglist);
 		if(result){
-			int isTuple=0;
-			if(PyString_Check(result)||(isTuple=PyTuple_Check(result))){
-				int	i;
-				PyObject_Cmp(PyTuple_GET_ITEM(arglist,0),result,&i);
-				if(i){
-					/*not the same*/
-					CFree((void *)e->systemid);
-					if(isTuple){
-						e->systemid = strdup8(PyString_AS_STRING(PyTuple_GET_ITEM(result,0)));
-						text = PyTuple_GET_ITEM(result,1);
-						Py_INCREF(text);
-						}
-					else{
-						e->systemid = strdup8(PyString_AS_STRING(result));
-						}
+			int isTuple=PyTuple_Check(result), isBytes=PyBytes_Check(result);
+			if(!(isBytes||isTuple)&&PyUnicode_Check(result)){
+				tmp = PyUnicode_AsEncodedString(result,"utf8","strict");
+				if(tmp){
+					Py_DECREF(result);
+					result = tmp;
+					isBytes = 1;
 					}
+				}
+			if(isBytes||isTuple){
+				void *esid=(void *)(e->systemid);
+				if(isTuple){
+					tmp = PyTuple_GET_ITEM(result,0);
+					if(PyUnicode_Check(tmp)){
+						tmp = PyUnicode_AsEncodedString(tmp,"utf8","strict");
+						if(!tmp){
+							PyErr_SetString(PDSTATE(pd,moduleError),"eoCB could not convert tuple URI (element 0) from unicode");
+L_err0:						Py_DECREF(result);
+							return NULL;
+							}
+						}
+					else if(!PyBytes_Check(tmp)){
+						PyErr_SetString(PDSTATE(pd,moduleError),"eoCB could not convert tuple URI (element 0) from unknown type");
+						goto L_err0;
+						}
+					e->systemid = strdup8(PyBytes_AS_STRING(tmp));
+					text = PyTuple_GET_ITEM(result,1);
+					Py_INCREF(text);
+					}
+				else{
+					e->systemid = strdup8(PyBytes_AS_STRING(result));
+					}
+				CFree(esid);
 				}
 			Py_DECREF(result);
 			}
@@ -620,15 +703,34 @@ static InputSource entity_open(Entity e, void *info)
 		Py_DECREF(arglist);
 		}
 	if(text){
-		int textlen = PyString_Size(text);
-		char *buf = Malloc(textlen);
+		int textlen;
+		char *buf;
 		FILE16 *f16;
-		memcpy(buf,PyString_AS_STRING(text),textlen);
+		if(PyUnicode_Check(text)){
+			tmp = PyUnicode_AsEncodedString(text,"utf8","strict");
+			if(tmp){
+				Py_DECREF(text);
+				text = tmp;
+				}
+			else {
+				PyErr_SetString(PDSTATE(pd,moduleError),"eoCB could not convert tuple text value");
+				Py_DECREF(text);
+				return NULL;
+				}
+			}
+		else if(!PyBytes_Check(text)){
+			PyErr_SetString(PDSTATE(pd,moduleError),"eoCB returned tuple with non-text value");
+			Py_DECREF(text);
+			return NULL;
+			}
+		textlen = PyBytes_Size(text);
+		buf = Malloc(textlen);
+		memcpy(buf,PyBytes_AS_STRING(text),textlen);
 		f16 = MakeFILE16FromString(buf, textlen, "r");
 		SetCloseUnderlying(f16,1);
 		Py_DECREF(text);
 		if(!e->base_url) EntitySetBaseURL(e,e->systemid);
-    	return NewInputSource(e, f16);
+		return NewInputSource(e, f16);
 		}
 	else return EntityOpen(e);
 }
@@ -643,13 +745,14 @@ void PyErr_FromStderr(Parser p, char *msg){
 	if(p->errbuf) Fprintf(Stderr,"%s\n", p->errbuf);
 	Fprintf(Stderr,"%s\n", msg);
 	buf[((struct _FILE16*)Stderr)->handle2] = 0;
-	PyErr_SetString(moduleError,buf);
+	PyErr_SetString(PSTATE(p,moduleError),buf);
 #else
 	PyObject* t;
 	if(p->errbuf) Fprintf(Stderr,"%s\n", p->errbuf);
 	Fprintf(Stderr,"%s\n", msg);
-	t = PyUnicode_Decode(buf, ((struct _FILE16*)Stderr)->handle2, "utf16", NULL);
-	PyErr_SetObject(moduleError,t);
+	t = PyUnicode_DecodeUTF16((const char *)buf, (Py_ssize_t)(((struct _FILE16*)Stderr)->handle2), NULL, &g_byteorder);
+	if(!t) return;
+	PyErr_SetObject(PSTATE(p,moduleError),t);
 	Py_DECREF(t);
 #endif
 }
@@ -661,7 +764,7 @@ int	checkFirstProperNode(ParserDetails *pd,PyObject *t)
 		PyErr_Clear();
 		return 0;
 		}
-	return n!=piTagName && n!=commentTagName && n!=CDATATagName;
+	return n!=PDSTATE(pd,piTagName) && n!=PDSTATE(pd,commentTagName) && n!=PDSTATE(pd,CDATATagName);
 }
 
 /*return non zero for error*/
@@ -757,13 +860,58 @@ static void myWarnCB(XBit bit, void *info)
 		}
 }
 
-typedef struct {
-	PyObject_HEAD
-	PyObject		*warnCB, *eoCB, *srcName, *fourth;
-	int				flags[2];
-	} pyRXPParserObject;
+static Char *myUGECB(Char *name, int namelen, void *info)
+{
+	ParserDetails*	pd=(ParserDetails*)info;
+	PyObject	*arglist;
+	PyObject	*result;
+	PyObject	*uname;
+	PyObject	*bytes;
+	Char		*r=NULL;
+	Py_ssize_t	sz;
+	int			err, ir;
+	const char	*s;
 
-static void __SetFlag(pyRXPParserObject* p, ParserFlag flag, int value)
+	if(pd->ugeCB==Py_None) return r;
+	uname = PyUnicode_DecodeUTF16((const char *)name, (Py_ssize_t)(sizeof(Char)*namelen), NULL, &g_byteorder);
+	if(!uname) return r;
+	arglist = Py_BuildValue("(O)",uname);
+	Py_DECREF(uname);
+	result = PyEval_CallObject(pd->ugeCB, arglist);
+	Py_DECREF(arglist);
+	if(result){
+		if(PyBytes_Check(result)){
+			/*if we see bytes we asssume it's utf8 encoded*/
+			sz = PyBytes_GET_SIZE(result);
+			s = PyBytes_AS_STRING(result);
+			uname = result;
+			result = PyUnicode_FromStringAndSize(s,sz);
+			Py_DECREF(uname);
+			}
+		if(result){
+			if(PyUnicode_Check(result)){
+				bytes=PyUnicode_AsEncodedString(result, g_encname, "strict");
+				if(bytes){
+					err = PyBytes_AsStringAndSize(bytes,(char **)&s,&sz);
+					if(!err){
+						/*at last we got a bunch of bytes in our encoding*/
+						r = (Char*)Malloc(sz+sizeof(Char));
+						if(r){
+							memcpy((char *)r,s,sz);
+							for(ir=0;ir<sizeof(Char);ir++) ((char *)r)[sz+ir]=0;
+							}
+						}
+					Py_DECREF(bytes);
+					}
+				}
+			Py_DECREF(result);
+			}
+		}
+	return r;
+}
+
+static PyTypeObject pyRXPParserType;	/*declaration only*/
+static void __SetFlag(pyRXPParser* p, ParserFlag flag, int value)
 {
 	int flagset;
 	unsigned int flagbit;
@@ -786,7 +934,7 @@ static int _set_attr(PyObject** pAttr, PyObject* value)
 static int _set_CB(char* name, PyObject** pCB, PyObject* value)
 {
 	if(value!=Py_None && !PyCallable_Check(value)){
-		char buf[64];
+		char buf[128];
 		sprintf(buf,"%s value must be absent, callable or None", name);
 		PyErr_SetString(PyExc_ValueError, buf);
 		return -1;
@@ -794,7 +942,7 @@ static int _set_CB(char* name, PyObject** pCB, PyObject* value)
 	else return _set_attr(pCB,value);
 }
 
-static int pyRXPParser_setattr(pyRXPParserObject *self, char *name, PyObject* value)
+static int pyRXPParser_setattr(pyRXPParser *self, char *name, PyObject* value)
 {
 	char buf[256];
 	PyObject*	v;
@@ -802,15 +950,28 @@ static int pyRXPParser_setattr(pyRXPParserObject *self, char *name, PyObject* va
 
 	if(!strcmp(name,"warnCB")) return _set_CB(name,&self->warnCB,value);
 	else if(!strcmp(name,"eoCB")) return _set_CB(name,&self->eoCB,value);
+	else if(!strcmp(name,"ugeCB")) return _set_CB(name,&self->ugeCB,value);
 	else if(!strcmp(name,"fourth")){
-		if(value==recordLocation){
+		if(value==PPSTATE(self,recordLocation)){
 			return _set_attr(&self->fourth,value);
 			}
 		return _set_CB(name,&self->fourth,value);
 		}
 	else if(!strcmp(name,"srcName")){
-		if(!PyString_Check(value)){
-			PyErr_SetString(PyExc_ValueError, "srcName value must be a string");
+		if(PyUnicode_Check(value)){
+			v = PyUnicode_AsEncodedString(value,"utf8","strict");
+			if(v){
+				_set_attr(&self->srcName,v);
+				Py_DECREF(v);
+				return 0;
+				}
+			else{
+				PyErr_SetString(PyExc_ValueError, "cannot convert srcName value to utf8");
+				return -1;
+				}
+			}
+		else if(!PyBytes_Check(value)){
+			PyErr_SetString(PyExc_ValueError, "invalid type for srcName");
 			return -1;
 			}
 		else return _set_attr(&self->srcName,value);
@@ -837,7 +998,7 @@ static int pyRXPParser_setattr(pyRXPParserObject *self, char *name, PyObject* va
 		}
 }
 
-static PyObject* pyRXPParser_parse(pyRXPParserObject* xself, PyObject* args, PyObject* kw)
+static PyObject* pyRXPParser_parse(pyRXPParser* xself, PyObject* args, PyObject* kw)
 {
 	Py_ssize_t	i;
 	FILE16		*f;
@@ -847,10 +1008,15 @@ static PyObject* pyRXPParser_parse(pyRXPParserObject* xself, PyObject* args, PyO
 	ParserDetails	CB;
 	Parser		p;
 	Entity		e;
-	pyRXPParserObject	dummy = *xself;
-	pyRXPParserObject*	self = &dummy;
+	pyRXPParser	dummy = *xself;
+	pyRXPParser*	self = &dummy;
+	memset(&CB,0,sizeof(CB));
+#ifdef	isPy3
+	CB.__self__ = self;
+#endif
 	if(self->warnCB) Py_INCREF(self->warnCB);
 	if(self->eoCB) Py_INCREF(self->eoCB);
+	if(self->ugeCB) Py_INCREF(self->ugeCB);
 	if(self->fourth) Py_INCREF(self->fourth);
 	if(self->srcName) Py_INCREF(self->srcName);
 
@@ -864,7 +1030,7 @@ static PyObject* pyRXPParser_parse(pyRXPParserObject* xself, PyObject* args, PyO
 #endif
 		dsrc = src;
 		}
-	else if(PyString_Check(osrc)){
+	else if(PyBytes_Check(osrc)){
 		/*bytes*/
 		src = osrc;
 		}
@@ -876,30 +1042,37 @@ static PyObject* pyRXPParser_parse(pyRXPParserObject* xself, PyObject* args, PyO
 		PyObject *key, *value;
 		i = 0;
 		while(PyDict_Next(kw,&i,&key,&value))
-			if(pyRXPParser_setattr(self, PyString_AsString(key), value))  goto L_1;
+			if(pyRXPParser_setattr(self, KEY2STR(key), value))	goto L_1;
 		}
 
-	if(self->warnCB){
+	if(self->warnCB && self->warnCB!=Py_None){
 		CB.warnCB = self->warnCB;
 		CB.warnErr = 0;
 		CB.warnCBF = 0;
 		}
-	if(self->eoCB){
+	if(self->eoCB && self->eoCB!=Py_None){
 		CB.eoCB = self->eoCB;
+		}
+	if(self->ugeCB && self->ugeCB!=Py_None){
+		CB.ugeCB = self->ugeCB;
 		}
 	CB.fourth = self->fourth;
 
 	p = NewParser();
 	CB.p = p;
-	ParserSetWarningCallbackArg(p, &CB);
+	ParserSetWarningCallbackArg(p, &CB);	/*we need this even if we don't have a warnCB*/
+	if(self->warnCB && self->warnCB!=Py_None){
+		ParserSetWarningCallback(p, myWarnCB);
+		}
+	if(self->ugeCB && self->ugeCB!=Py_None){
+		ParserSetUGEProcArg(p, &CB);
+		ParserSetUGEProc(p, myUGECB);
+		}
 	p->flags[0] = self->flags[0];
 	p->flags[1] = self->flags[1];
-	if((self->warnCB && self->warnCB!=Py_None) || (self->eoCB && self->eoCB!=Py_None)){
-		if(self->warnCB && self->warnCB!=Py_None) ParserSetWarningCallback(p, myWarnCB);
-		if(self->eoCB && self->eoCB!=Py_None){
-			ParserSetEntityOpener(p, entity_open);
-			ParserSetEntityOpenerArg(p, &CB);
-			}
+	if(self->eoCB && self->eoCB!=Py_None){
+		ParserSetEntityOpener(p, entity_open);
+		ParserSetEntityOpenerArg(p, &CB);
 		}
 	CB.none_on_empty = !__GetFlag(self,ExpandEmpty);
 #if	CHAR_SIZE==16
@@ -921,8 +1094,8 @@ static PyObject* pyRXPParser_parse(pyRXPParserObject* xself, PyObject* args, PyO
 	/*set up the parsers Stderr stream thing so we get it in a string*/
 	Fclose(Stderr);
 	Stderr = MakeFILE16FromString(errBuf,sizeof(errBuf)-1,"w");
-	f = MakeFILE16FromString(PyString_AS_STRING(src),PyString_GET_SIZE(src),"r");
-	source = SourceFromFILE16(PyString_AsString(self->srcName),f);
+	f = MakeFILE16FromString(PyBytes_AS_STRING(src),PyBytes_GET_SIZE(src),"r");
+	source = SourceFromFILE16(PyBytes_AsString(self->srcName),f);
 	retVal = ProcessSource(p,source);
 	e = source->entity; /*used during FreeParser closing source!*/
 	Fclose(Stderr);
@@ -934,6 +1107,7 @@ L_1:
 	Py_XDECREF(dsrc);
 	Py_XDECREF(self->warnCB);
 	Py_XDECREF(self->eoCB);
+	Py_XDECREF(self->ugeCB);
 	Py_XDECREF(self->fourth);
 	Py_XDECREF(self->srcName);
 	return retVal;
@@ -956,15 +1130,20 @@ static PyObject* _get_OB(char* name,PyObject* ob)
 	return NULL;
 }
 
-static PyObject* pyRXPParser_getattr(pyRXPParserObject *self, char *name)
+static PyObject* pyRXPParser_getattr(pyRXPParser *self, char *name)
 {
 	int	i;
 	if(!strcmp(name,"warnCB")) return _get_OB(name,self->warnCB);
 	else if(!strcmp(name,"eoCB")) return _get_OB(name,self->eoCB);
 	else if(!strcmp(name,"fourth")) return _get_OB(name,self->fourth);
+	else if(!strcmp(name,"__instance_module__")) return _get_OB(name,self->__instance_module__);
 	else if(!strcmp(name,"srcName")){
 		Py_INCREF(self->srcName);
 		return self->srcName;
+		}
+	else if(!strcmp(name,"__class__")){
+		Py_INCREF((PyObject *)&pyRXPParserType);
+		return (PyObject *)&pyRXPParserType;
 		}
 	else {
 		for(i=0;flag_vals[i].k;i++)
@@ -973,123 +1152,243 @@ static PyObject* pyRXPParser_getattr(pyRXPParserObject *self, char *name)
 
 		}
 	return Py_FindMethod(pyRXPParser_methods, (PyObject *)self, name);
-}
+	}
 
-static void pyRXPParserFree(pyRXPParserObject* self)
-{
-	Py_XDECREF(self->srcName);
-	Py_XDECREF(self->warnCB);
-	Py_XDECREF(self->eoCB);
-	Py_XDECREF(self->fourth);
-#if	0
-	/*this could be called if we're never going to use the parser again*/
-	deinit_parser();
+static int pyRXPParser_traverse(pyRXPParser *self, visitproc visit, void *arg){
+	Py_VISIT(self->srcName);
+	Py_VISIT(self->warnCB);
+	Py_VISIT(self->eoCB);
+	Py_VISIT(self->fourth);
+	Py_VISIT(self->__instance_module__);
+	return 0;
+	}
+static int pyRXPParser_clear(pyRXPParser* self){
+	Py_CLEAR(self->srcName);
+	Py_CLEAR(self->warnCB);
+	Py_CLEAR(self->eoCB);
+	Py_CLEAR(self->fourth);
+	Py_CLEAR(self->__instance_module__);
+	return 0;
+	}
+
+static int pyRXPParser_dealloc(pyRXPParser* self){
+	pyRXPParser_clear(self);
+	Py_TYPE(self)->tp_free((PyObject*)self);
+	return 0;
+	}
+
+#ifdef isPy3
+static struct PyModuleDef moduleDef;
 #endif
-	PyObject_DEL(self);
-}
-
-static PyTypeObject pyRXPParserType = {
-	PyObject_HEAD_INIT(0)
-	0,								/*ob_size*/
-	"pyRXPParser",					/*tp_name*/
-	sizeof(pyRXPParserObject),		/*tp_basicsize*/
-	0,								/*tp_itemsize*/
-	/* methods */
-	(destructor)pyRXPParserFree,	/*tp_dealloc*/
-	(printfunc)0,					/*tp_print*/
-	(getattrfunc)pyRXPParser_getattr,	/*tp_getattr*/
-	(setattrfunc)pyRXPParser_setattr,	/*tp_setattr*/
-	(cmpfunc)0,						/*tp_compare*/
-	(reprfunc)0,					/*tp_repr*/
-	0,								/*tp_as_number*/
-	0,								/*tp_as_sequence*/
-	0,								/*tp_as_mapping*/
-	(hashfunc)0,					/*tp_hash*/
-	(ternaryfunc)pyRXPParser_parse,	/*tp_call*/
-	(reprfunc)0,					/*tp_str*/
-
-	/* Space for future expansion */
-	0L,0L,0L,0L,
-	/* Documentation string */
-	"pyRXPParser instance, see pyRXP doc string for details."
-};
-
-static pyRXPParserObject* pyRXPParser(PyObject* module, PyObject* args, PyObject* kw)
+static int pyRXPParser_init(pyRXPParser* self, PyObject* args, PyObject* kw)
 {
-	pyRXPParserObject* self;
 	Py_ssize_t	i;
 
-	if(!PyArg_ParseTuple(args, ":Parser")) return NULL;
-	if(!(self = PyObject_NEW(pyRXPParserObject, &pyRXPParserType))) return NULL;
-	self->warnCB = self->eoCB = self->fourth = self->srcName = NULL;
-	if(!(self->srcName=PyString_FromString("[unknown]"))){
-		PyErr_SetString(moduleError,"Internal error, memory limit reached!");
-Lfree:	pyRXPParserFree(self);
-		return NULL;
+	if(!PyArg_ParseTuple(args, ":Parser")) return -1;
+	Py_XDECREF(self->warnCB);
+	Py_XDECREF(self->eoCB);
+	Py_XDECREF(self->ugeCB);
+	Py_XDECREF(self->fourth);
+	Py_XDECREF(self->srcName);
+	Py_XDECREF(self->__instance_module__);
+	self->warnCB = self->eoCB = self->ugeCB = self->fourth = self->srcName = NULL;
+#ifdef isPy3
+	self->__instance_module__ = PyState_FindModule(&moduleDef);
+#else
+	self->__instance_module__ = g_module;
+#endif
+	Py_INCREF(self->__instance_module__);
+	if(!(self->srcName=PyBytes_FromString("[unknown]"))){
+		PyErr_SetString(MSTATE(self->__instance_module__,moduleError),"Internal error, memory limit reached!");
+Lfree:	pyRXPParser_dealloc(self);
+		return -1;
 		}
 	for(i=0;flag_vals[i].k;i++)
-		__SetFlag(self,(ParserFlag)i,PyInt_AsLong(PyDict_GetItemString(parser_flags,flag_vals[i].k)));
+		__SetFlag(self,(ParserFlag)i,PyInt_AsLong(PyDict_GetItemString(MSTATE(self->__instance_module__,parser_flags),flag_vals[i].k)));
 
 	if(kw){
 		PyObject *key, *value;
 		i = 0;
 		while(PyDict_Next(kw,&i,&key,&value))
-			if(pyRXPParser_setattr(self, PyString_AsString(key), value)) goto Lfree;
+			if(pyRXPParser_setattr(self, KEY2STR(key), value)) goto Lfree;
 		}
 
-	return self;
-}
+	return 0;
+	}
 
-static struct PyMethodDef moduleMethods[] = {
-	{"Parser",	(PyCFunction)pyRXPParser,	METH_VARARGS|METH_KEYWORDS, "Parser(**kw) create a pyRXP parser instance"},
-	{NULL,	NULL}	/*sentinel*/
-};
+static PyTypeObject pyRXPParserType = {
+	PyVarObject_HEAD_INIT(NULL, 0)
+
+	MODULENAME ".Parser",					/*tp_name*/
+	sizeof(pyRXPParser),					/*tp_basicsize*/
+	0,										/*tp_itemsize*/
+	(destructor)pyRXPParser_dealloc,		/*tp_dealloc*/
+	0,										/*tp_print*/
+	(getattrfunc)pyRXPParser_getattr,		/*tp_getattr*/
+	(setattrfunc)pyRXPParser_setattr,		/*tp_setattr*/
+	0,										/*tp_compare*/
+	0,										/*tp_repr*/
+	0,										/*tp_as_number*/
+	0,										/*tp_as_sequence*/
+	0,										/*tp_as_mapping*/
+	0,										/*tp_hash*/
+	(ternaryfunc)pyRXPParser_parse,			/*tp_call*/
+	0,										/*tp_str*/
+	0,										/*tp_getattro*/
+	0,										/*tp_setattro*/
+	0,										/*tp_as_buffer*/
+	Py_TPFLAGS_DEFAULT | Py_TPFLAGS_BASETYPE | Py_TPFLAGS_HAVE_GC, /*tp_flags*/
+	"pyRXPParser instance, see " MODULENAME " doc string for details.",
+	(traverseproc)pyRXPParser_traverse,		/*tp_traverse*/
+	(inquiry)pyRXPParser_clear,				/*tp_clear*/
+	0,										/*tp_richcompare*/
+	0,										/*tp_weaklistoffset*/
+	0,										/*tp_iter*/
+	0,										/*tp_iternext*/
+	pyRXPParser_methods,					/*tp_methods*/
+	0,										/*tp_members*/
+	0,										/*tp_getset*/
+	0,										/*tp_base*/
+	0,										/*tp_dict*/
+	0,										/*tp_descr_get*/
+	0,										/*tp_descr_set*/
+	0,										/*tp_dictoffset*/
+	(initproc)pyRXPParser_init,				/*tp_init*/
+	0,										/*tp_alloc*/
+	0,										/*tp_new*/
+	};
+
 
 #if	defined(_DEBUG) && defined(WIN32)
 #	include <crtdbg.h>
 #endif
-DL_EXPORT(void) initpyRXP(void)
+#ifdef isPy3
+static int _traverse(PyObject *m, visitproc visit, void *arg) {
+	struct module_state *st = GETSTATE(m);
+	Py_VISIT(st->moduleError);
+	Py_VISIT(st->moduleVersion);
+	Py_VISIT(st->RXPVersion);
+	Py_VISIT(st->piTagName);
+	Py_VISIT(st->recordLocation);
+	Py_VISIT(st->parser_flags);
+	Py_VISIT(st->parser);
+	return 0;
+	}
+
+static int _clear(PyObject *m) {
+	struct module_state *st = GETSTATE(m);
+	Py_CLEAR(st->moduleError);
+	Py_CLEAR(st->moduleVersion);
+	Py_CLEAR(st->RXPVersion);
+	Py_CLEAR(st->piTagName);
+	Py_CLEAR(st->recordLocation);
+	Py_CLEAR(st->parser_flags);
+	Py_CLEAR(st->parser);
+	return 0;
+	}
+static struct PyModuleDef moduleDef = {
+	PyModuleDef_HEAD_INIT,
+	MODULENAME,
+	__DOC__,
+	sizeof(struct module_state),
+	NULL,
+	NULL,
+	_traverse,
+	_clear,
+	NULL
+	};
+#	if CHAR_SIZE==16
+#		define MODULEINIT PyInit_pyRXPU
+#	else
+#		define MODULEINIT PyInit_pyRXP
+#	endif
+#	define OK_RET m
+#	define ERR_RET NULL
+#	define CREATE_MODULE() PyModule_Create(&moduleDef);PyState_AddModule(m,&moduleDef)
+PyMODINIT_FUNC MODULEINIT(void)
+#else
+#	if CHAR_SIZE==16
+#		define MODULEINIT initpyRXPU
+#	else
+#		define MODULEINIT initpyRXP
+#	endif
+#	define OK_RET
+#	define ERR_RET
+#	define CREATE_MODULE() Py_InitModule3(MODULENAME, NULL, __DOC__)
+DL_EXPORT(void) MODULEINIT(void)
+#endif
 {
-	PyObject *m, *d, *v, *t;
+	PyObject *m=NULL, *t, *moduleVersion=NULL, *RXPVersion=NULL, *moduleError=NULL,
+			 *piTagName=NULL, *commentTagName=NULL, *CDATATagName=NULL, *recordLocation=NULL,
+			 *parser_flags=NULL;
 	int	i;
+	g_byteorder = InternalCharacterEncoding==CE_UTF_16B?1:-1;
+	g_encname = g_byteorder==1?"utf_16_be":"utf_16_le";
+
 #if	defined(_DEBUG) && defined(WIN32)
 	i = _CrtSetDbgFlag(_CRTDBG_REPORT_FLAG);
 	i |= _CRTDBG_CHECK_ALWAYS_DF;
 	_CrtSetDbgFlag(i);
 #endif
 
-	/*set up the types by hand*/
-	pyRXPParserType.ob_type = &PyType_Type;
+	pyRXPParserType.tp_new = PyType_GenericNew;
+	if(PyType_Ready(&pyRXPParserType)<0)goto err;	/*set up the types by hand*/
 
 	/* Create the module and add the functions */
-	m = Py_InitModule(MODULE, moduleMethods);
+	m = CREATE_MODULE();
+	if(!m)goto err;
+
+#ifndef isPy3
+	g_module = m;
+#endif
 
 	/* Add some symbolic constants to the module */
-	d = PyModule_GetDict(m);
-	PyDict_SetItemString(d, "_svnId", PyString_FromString(svnId));
-	moduleVersion = PyString_FromString(VERSION);
-	PyDict_SetItemString(d, "version", moduleVersion );
-	RXPVersion = PyString_FromString(rxp_version_string);
-	PyDict_SetItemString(d, "RXPVersion", RXPVersion );
-	moduleError = PyErr_NewException(MODULE ".error",NULL,NULL);
-	PyDict_SetItemString(d,"error",moduleError);
+	moduleVersion = PyBytes_FromString(VERSION);
+	if(!moduleVersion)goto err;
+	RXPVersion = PyBytes_FromString(rxp_version_string);
+	if(!RXPVersion)goto err;
+	moduleError = PyErr_NewException(MODULENAME ".error",NULL,NULL);
+	if(!moduleError)goto err;
 	piTagName = PYSTRING8("<?");
-	PyDict_SetItemString(d, "piTagName", piTagName );
+	if(!piTagName)goto err;
 	commentTagName = PYSTRING8("<!--");
-	PyDict_SetItemString(d, "commentTagName", commentTagName );
+	if(!commentTagName)goto err;
 	CDATATagName = PYSTRING8("<![CDATA[");
-	PyDict_SetItemString(d, "CDATATagName", CDATATagName );
-	recordLocation = PyString_FromString("recordLocation");
-	PyDict_SetItemString(d, "recordLocation",recordLocation);
+	if(!CDATATagName)goto err;
+	recordLocation = PyBytes_FromString("recordLocation");
+	if(!recordLocation)goto err;
 	parser_flags = PyDict_New();
+	if(!parser_flags)goto err;
 	for(i=0;flag_vals[i].k;i++){
-		PyDict_SetItemString(parser_flags, flag_vals[i].k, t=PyInt_FromLong(flag_vals[i].v));
+		t=PyInt_FromLong(flag_vals[i].v);
+		if(!t)goto err;
+		PyDict_SetItemString(parser_flags, flag_vals[i].k, t);
 		Py_DECREF(t);
 		}
-	PyDict_SetItemString(d,"parser_flags",parser_flags);
 
 	/*add in the docstring*/
-	v = PyString_FromString(moduleDoc);
-	PyDict_SetItemString(d, "__doc__", v);
-	Py_DECREF(v);
+#define ADD2MODULE(n,o) PyModule_AddObject(m,n,o);MSTATE(m,o)=o
+	ADD2MODULE("version", moduleVersion);
+	ADD2MODULE("RXPVersion", RXPVersion);
+	ADD2MODULE("error",moduleError);
+	ADD2MODULE("piTagName", piTagName);
+	ADD2MODULE("commentTagName", commentTagName);
+	ADD2MODULE("CDATATagName", CDATATagName);
+	ADD2MODULE("recordLocation", recordLocation);
+	ADD2MODULE("parser_flags", parser_flags);
+	Py_INCREF((PyObject *)&pyRXPParserType);
+	PyModule_AddObject(m,"Parser", (PyObject *)&pyRXPParserType);
+	MSTATE(m,parser) = (PyObject *)&pyRXPParserType;
+	return OK_RET;
+err:
+	Py_XDECREF(moduleVersion);
+	Py_XDECREF(RXPVersion);
+	Py_XDECREF(moduleError);
+	Py_XDECREF(piTagName);
+	Py_XDECREF(commentTagName);
+	Py_XDECREF(CDATATagName);
+	Py_XDECREF(recordLocation);
+	Py_XDECREF(parser_flags);
+	Py_XDECREF(m);
+	return ERR_RET;
 }
