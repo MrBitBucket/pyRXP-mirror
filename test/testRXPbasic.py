@@ -1,4 +1,5 @@
 from __future__ import unicode_literals
+from future_builtins import ascii
 import traceback, sys, os
 _pyRXP = None
 _logf = open('pyRXP_test.log','w')
@@ -37,7 +38,7 @@ def goodTest(x,t,tb=0,inOnly=0,**kw):
 		rb = 0
 	except:
 		et, ev, _unused = sys.exc_info()
-		r = '%s %s' % (et.__name__, str(ev))
+		r = '%s %s' % (et.__name__, ascii(ev)[8:-3])
 		rb = 1
 
 	s = ''
@@ -157,14 +158,18 @@ def _runTests(pyRXP):
 	failTest(bigDepth(257),"""error Internal error, stack limit reached!\n""", inOnly=1)
 	failTest('<a>&Aacute;&aacute;</a>','error Error: Undefined entity Aacute\n in unnamed entity at line 1 char 12 of [unknown]\nUndefined entity Aacute\nParse Failed!\n')
 	goodTest('<a>&Aacute;</a>',('a', None, ['\xc1'], None), ugeCB=ugeCB)
-	failTest('<!DOCTYPE foo SYSTEM "not-there.dtd"><foo>foo<a>aaa</a>fum</foo>',"error Error: Couldn't open dtd entity file:///C:/code/hg-repos/pyRXP/test/not-there.dtd\\n in unnamed entity at line 1 char 38 of [unknown]\\nCouldn't open dtd entity file:///C:/code/hg-repos/pyRXP/test/not-there.dtd\\nParse Failed!\\n",NoNoDTDWarning=0)
+	filename = os.path.join(os.getcwd(),'not-there.dtd').replace(os.sep,'/')
+	if filename.startswith('/'): filename = filename[1:]
+	failTest('<!DOCTYPE foo SYSTEM "not-there.dtd"><foo>foo<a>aaa</a>fum</foo>',"error Error: Couldn't open dtd entity file:///%(filename)s\\n in unnamed entity at line 1 char 38 of [unknown]\\nCouldn't open dtd entity file:///%(filename)s\\nParse Failed!\\n"%vars(),NoNoDTDWarning=0)
 	failTest('<!DOCTYPE foo SYSTEM "is-there.dtd"><foo><a>aaa</a></foo>','error Error: Content model for foo does not allow it to end here\\n in unnamed entity at line 1 char 57 of [unknown]\\nContent model for foo does not allow it to end here\\nParse Failed!\\n',NoNoDTDWarning=0)
 	goodTest('<!DOCTYPE foo SYSTEM "is-there.dtd"><foo><a>aaa</a><b>bbbb</b></foo>',('foo', None, [('a', None, ['aaa'], None), ('b', None, ['bbbb'], None)], None),NoNoDTDWarning=0)
 	failTest('<!DOCTYPE foo SYSTEM "is-there.dtd"><foo><a>aaa</a></foo>','error Error: Content model for foo does not allow it to end here\\n in unnamed entity at line 1 char 57 of [unknown]\\nContent model for foo does not allow it to end here\\nParse Failed!\\n',NoNoDTDWarning=0,eoCB=eoDTD)
 	goodTest('<!DOCTYPE foo SYSTEM "is-there.dtd"><foo><a>aaa</a><b>bbbb</b></foo>',('foo', None, [('a', None, ['aaa'], None), ('b', None, ['bbbb'], None)], None),NoNoDTDWarning=0,eoCB=eoDTD)
 	goodTest('<!DOCTYPE foo SYSTEM "have-utf8-content.dtd"><foo><a>aaa</a><b>bbbb</b></foo>',('foo', None, [('a', None, ['aaa'], None), ('b', None, ['bbbb'], None)], None),NoNoDTDWarning=0,eoCB=eoDTD)
 	goodTest('<!DOCTYPE foo SYSTEM "have-unicode-content.dtd"><foo><a>aaa</a><b>bbbb</b></foo>',('foo', None, [('a', None, ['aaa'], None), ('b', None, ['bbbb'], None)], None),NoNoDTDWarning=0,eoCB=eoDTD)
-	failTest('<!DOCTYPE foo SYSTEM "not-there.dtd"><foo>foo<a>aaa</a>fum</foo>',"error Error: Couldn't open dtd entity file:///C:/code/hg-repos/pyRXP/test/really-not-there.dtd\\n in unnamed entity at line 1 char 38 of [unknown]\\nCouldn't open dtd entity file:///C:/code/hg-repos/pyRXP/test/really-not-there.dtd\\nParse Failed!\\n",NoNoDTDWarning=0,eoCB=eoDTD)
+	filename = os.path.join(os.getcwd(),'really-not-there.dtd').replace(os.sep,'/')
+	if filename.startswith('/'): filename = filename[1:]
+	failTest('<!DOCTYPE foo SYSTEM "not-there.dtd"><foo>foo<a>aaa</a>fum</foo>',"error Error: Couldn't open dtd entity file:///%(filename)s\\n in unnamed entity at line 1 char 38 of [unknown]\\nCouldn't open dtd entity file:///%(filename)s\\n"%vars(),NoNoDTDWarning=0,eoCB=eoDTD,inOnly=1)
 	failTest('<!DOCTYPE foo SYSTEM "badt-have-utf8-content.dtd"><foo><a>aaa</a><b>bbbb</b></foo>',"error Error: Couldn't open dtd entity badt-have-utf8-content.dtd\\n in unnamed entity at line 1 char 51 of [unknown]\\nCouldn't open dtd entity badt-have-utf8-content.dtd\\nParse Failed!\\n",NoNoDTDWarning=0,eoCB=eoDTD)
 	failTest('<!DOCTYPE foo SYSTEM "badt-have-unicode-content.dtd"><foo><a>aaa</a><b>bbbb</b></foo>',"error Error: Couldn't open dtd entity badt-have-unicode-content.dtd\\n in unnamed entity at line 1 char 54 of [unknown]\\nCouldn't open dtd entity badt-have-unicode-content.dtd\\nParse Failed!\\n",NoNoDTDWarning=0,eoCB=eoDTD)
 
