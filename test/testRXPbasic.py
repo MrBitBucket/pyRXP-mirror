@@ -1,5 +1,8 @@
 from __future__ import unicode_literals
-from future_builtins import ascii
+try:
+	from future_builtins import ascii
+except ImportError:
+	pass
 import traceback, sys, os
 _pyRXP = None
 _logf = open('pyRXP_test.log','w')
@@ -38,7 +41,9 @@ def goodTest(x,t,tb=0,inOnly=0,**kw):
 		rb = 0
 	except:
 		et, ev, _unused = sys.exc_info()
-		r = '%s %s' % (et.__name__, ascii(ev)[8:-3])
+		sev = ascii(ev)[6:-3]
+		if sev.startswith('u'): sev = sev[1:]
+		r = '%s %s' % (et.__name__, sev[1:])
 		rb = 1
 
 	s = ''
