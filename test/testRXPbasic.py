@@ -185,7 +185,7 @@ def run():
 		print(pyRXPU.__doc__)
 	else:
 		if pyRXPU: _runTests(pyRXPU)
-		msg = "\n%d tests, %s failures!" % (_total,_bad and str(_bad) or 'no')
+		msg = ("\n%d tests" % _total) + (', %d FAILED!' % _bad if _bad else '\n\nOK')
 		print(msg)
 		plogn(msg)
 
