@@ -56,7 +56,7 @@ if __name__=='__main__': #NO RUNTESTS
 								library_dirs=[],
 								# libraries to link against
 								libraries=LIBS,
-								**EXT_KWARGS,
+								**EXT_KWARGS
 								),
 					]
 
