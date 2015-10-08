@@ -23,10 +23,15 @@ if __name__=='__main__': #NO RUNTESTS
 	LIBS = []
 	LIBRARIES=[]
 	EXT_MODULES = []
+	EXT_KWARGS = {}
 
 	#building pyRXP
 	if sys.platform=="win32":
 		LIBS=['wsock32']
+		if sys.version_info[:2]==(3,5) and not int(os.environ.get('PYRXP35LONG','0')):
+			EXT_KWARGS['extra_compile_args'] = ['/Od']
+		#EXT_KWARGS['extra_compile_args'] = ['/Zi']
+		#EXT_KWARGS['extra_link_args'] = ['/DEBUG']
 	elif sys.platform=="sunos5":
 		LIBS=['nsl', 'socket', 'dl']
 	elif sys.platform=="aix4":
@@ -51,8 +56,7 @@ if __name__=='__main__': #NO RUNTESTS
 								library_dirs=[],
 								# libraries to link against
 								libraries=LIBS,
-								#uncomment when debugging
-								#extra_compile_args=['/Zi'], extra_link_args=['/DEBUG'],
+								**EXT_KWARGS,
 								),
 					]
 
