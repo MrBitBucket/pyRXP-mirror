@@ -1,13 +1,13 @@
 def test1(n):
 	print 'starting test1'
-	import pyRXP, sys
+	import pyRXPU, sys
 	xml='<start><tag1>text here</tag1><tag1>more text</tag1></start>'
 	P = i = tup = None
 	for i in xrange(n):
-		P=pyRXP.Parser()
+		P=pyRXPU.Parser()
 		tup=P(xml)
 		sys.stdout.write('.')
-	del n, pyRXP, sys, P, tup, xml
+	del n, pyRXPU, sys, P, tup, xml
 	print '\ntest2 done'
 
 def test2(n):

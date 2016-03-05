@@ -1,4 +1,5 @@
-import sys, os, pyRXP, pprint, time
+import sys, os, pprint, time
+import pyRXPU as pyRXP
 
 def test(fn):
 	cwd = os.getcwd()
