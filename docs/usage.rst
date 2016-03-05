@@ -15,10 +15,10 @@ version information for the rxp library embedded in the module.
 
 ::
 
-    >>> import pyRXP
-    >>> pyRXP.version
+    >>> import pyRXPU
+    >>> pyRXPU.version
     '1.16'
-    >>> pyRXP.RXPVersion
+    >>> pyRXPU.RXPVersion
     'RXP 1.5.0 Copyright Richard Tobin, LTG, HCRC, University of Edinburgh'
 
 Once you have imported pyRXP, you can instantiate a parser instance
@@ -26,7 +26,7 @@ using the Parser class.
 
 ::
 
-    >>>rxp=pyRXP.Parser()
+    >>>rxp=pyRXPU.Parser()
 
 
 To parse some XML, you use the ``parse`` method, passing a string as the first argument and
@@ -34,19 +34,22 @@ receiving the parsed Tuple Tree as a result:
 
 ::
 
-    >>> rxp=pyRXP.Parser()
+    >>> rxp=pyRXPU.Parser()
     >>> rxp.parse('<a>some text</a>')
-    ('a', None, ['some text'], None)
+    (u'a', None, [u'some text'], None)
 
 
 As a shortcut, you can call the instance directly:
 
 ::
 
-    >>> rxp=pyRXP.Parser()
+    >>> rxp=pyRXPU.Parser()
     >>> rxp('<a>some text</a>')
-    ('a', None, ['some text'], None)
+    (u'a', None, [u'some text'], None)
 
+
+The current version of PyRXP only contains pyRXPU, which is the 16-bit Unicode aware
+version of pyRXP, and all returned strings are Unicode strings.
 
 __Note__:
 Throughout this documentation, we'll use the explicit call syntax for clarity.
@@ -60,7 +63,7 @@ later.
 ::
 
     >>> rxp.parse('<tag>content</tag>')
-    ('tag', None, ['content'], None)
+    (u'tag', None, [u'content'], None)
 
 
 Each element ("tag") in the XML is represented as a tuple of 4 elements:
@@ -81,18 +84,18 @@ tuples, but they will all use the same structure as this one.
 ::
 
     >>> rxp.parse('<tag1><tag2>content</tag2></tag1>')
-    ('tag1', None, [('tag2', None, ['content'], None)], None)
+    (u'tag1', None, [(u'tag2', None, [u'content'], None)], None)
 
 This may be easier to understand if we lay it out differently:
 
 ::
 
     >>> rxp.parse('<tag1><tag2>content</tag2></tag1>')
-    ('tag1',
+    (u'tag1',
      None,
-         [('tag2',
+         [(u'tag2',
            None,
-           ['content'],
+           [u'content'],
            None)
          ],
     None)
@@ -118,13 +121,13 @@ and the other is the singleton form which by definition has no content.
 ::
 
     >>> rxp.parse('<tag>my contents</tag>')
-    ('tag', None, ['my contents'], None)
+    (u'tag', None, [u'my contents'], None)
 
     >>> rxp.parse('<tag></tag>')
-    ('tag', None, [], None)
+    (u'tag', None, [], None)
 
     >>> rxp.parse('<tag/>')
-    ('tag', None, None, None)
+    (u'tag', None, None, None)
 
 Notice how the contents list is handled differently for the last two
 examples. This is how we can tell the difference between an empty tag
@@ -138,21 +141,21 @@ Another example:
 ::
 
     >>>rxp.parse('<outerTag><innerTag>bb</innerTag>aaa<singleTag/></outerTag>')
-    ('outerTag', None, [('innerTag', None, ['bb'], None), 'aaa', ('singleTag',
+    (u'outerTag', None, [(u'innerTag', None, [u'bb'], None), u'aaa', (u'singleTag',
     None, None, None)], None)
 
 Again, this is more understandable if we show it like this:
 
 ::
 
-    ('outerTag',
+    (u'outerTag',
      None,
-         [('innerTag',
+         [(u'innerTag',
            None,
-           ['bb'],
+           [u'bb'],
            None),
-              'aaa',
-                  ('singleTag',
+              u'aaa',
+                  (u'singleTag',
                    None,
                    None,
                    None)
@@ -178,14 +181,14 @@ Some examples. This is what happens if we accept the default behaviour:
 ::
 
     >>> rxp.parse('<a>some text</a>')
-    ('a', None, ['some text'], None)
+    (u'a', None, [u'some text'], None)
 
 Explicitly setting ExpandEmpty to 1 gives us these:
 
 ::
 
     >>> rxp.parse('<a>some text</a>', ExpandEmpty=1)
-    ('a', {}, ['some text'], None)
+    (u'a', {}, [u'some text'], None)
 
 Notice how the None from the first example is being returned as an empty
 dictionary in the second version. ``ExpandEmpty`` makes the sure that the
@@ -198,12 +201,12 @@ tag.
 ::
 
     >>> rxp.parse('<b/>', ExpandEmpty=0)
-    ('b', None, None, None)
+    (u'b', None, None, None)
 
 ::
 
     >>> rxp.parse('<b/>', ExpandEmpty=1)
-    ('b', {}, [], None)
+    (u'b', {}, [], None)
 
 Again, notice how the Nones have been expanded.
 
@@ -213,26 +216,26 @@ which uses nested tags:
 ::
 
     >>> rxp.parse('<a>some text<b>Hello</b></a>', ExpandEmpty=0)
-    ('a', None, ['some text', ('b', None, ['Hello'], None)], None)
+    (u'a', None, [u'some text', (u'b', None, [u'Hello'], None)], None)
 
     >>> rxp.parse('<a>some text<b>Hello</b></a>', ExpandEmpty=1)
-    ('a', {}, ['some text', ('b', {}, ['Hello'], None)], None)
+    (u'a', {}, [u'some text', (u'b', {}, [u'Hello'], None)], None)
 
 ::
 
     >>> rxp.parse('<a>some text<b></b></a>', ExpandEmpty=0)
-    ('a', None, ['some text', ('b', None, [], None)], None)
+    (u'a', None, [u'some text', (u'b', None, [], None)], None)
 
     >>> rxp.parse('<a>some text<b></b></a>', ExpandEmpty=1)
-    ('a', {}, ['some text', ('b', {}, [], None)], None)
+    (u'a', {}, [u'some text', (u'b', {}, [], None)], None)
 
 ::
 
     >>> rxp.parse('<a>some text<b/></a>', ExpandEmpty=0)
-    ('a', None, ['some text', ('b', None, None, None)], None)
+    (u'a', None, [u'some text', (u'b', None, None, None)], None)
 
     >>> rxp.parse('<a>some text<b/></a>', ExpandEmpty=1)
-    ('a', {}, ['some text', ('b', {}, [], None)], None)
+    (u'a', {}, [u'some text', (u'b', {}, [], None)], None)
 
 3.1.4 Processing instructions
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -248,10 +251,10 @@ the ``ReturnProcessingInstruction`` attribute.
 ::
 
     >>> rxp.parse(<a><?works document="hello.doc"?></a>')
-    ('a', None, [], None)
+    (u'a', None, [], None)
     >>> #vanishes - like a comment
     >>> rxp.parse('<a><?works document="hello.doc"?></a>', ReturnProcessingInstructions=1)
-    ('a', None, [('<?', {'name': 'works'}, ['document="hello.doc"'], None)], None)
+    (u'a', None, [(u'<?', {u'name': u'works'}, [u'document="hello.doc"'], None)], None)
     >>>
 
 
@@ -261,7 +264,7 @@ attribute) to check for processing instructions:
 ::
 
     >>> pyRXP.piTagName
-    '<?'
+    u'<?'
 
 You can test against ``piTagName`` - but don't try and change it. See the
 section on trying to change ``commentTagName`` for an example of what would
@@ -289,7 +292,7 @@ behaviour can be changed - see the section of Flags later for details).
 ::
 
     >>> rxp.parse('<tag><!-- this is a comment about the tag --></tag>')
-    ('tag', None, [], None)
+    (u'tag', None, [], None)
 
     >>> rxp.parse('<!-- this is a comment -->')
     Traceback (most recent call last):
@@ -309,7 +312,7 @@ It is possible to set pyRXP to not swallow comments using the
 
 
     >>> rxp.parse('<tag><!-- this is a comment about the tag --></tag>', ReturnComments=1)
-    ('tag', None, [('<!--', None, [' this is a comment about the tag '], None)], None)
+    (u'tag', None, [(u'<!--', None, [u' this is a comment about the tag '], None)], None)
 
 Using ``ReturnComments``, the comment are returned in the same way as an
 ordinary tag, except that the tag has a special name. This special name
@@ -322,23 +325,23 @@ is defined in the module pseudo-constant ``commentTagName`` (again, not an insta
       File "<stdin>", line 1, in <module>
     AttributeError: commentTagName
 
-    >>> pyRXP.commentTagName
-    '<!--'
+    >>> pyRXPU.commentTagName
+    u'<!--'
 
 Please note that changing ``commentTagName`` won't work: what would be changed is simply the
 Python representation, while the underlying C object would remain untouched:
 
 ::
 
-    >>> import pyRXP
-    >>> p=pyRXP.Parser()
-    >>> pyRXP.commentTagName = "##" # THIS WON'T WORK!
-    >>> pyRXP.commentTagName
+    >>> import pyRXPU
+    >>> p=pyRXPU.Parser()
+    >>> pyRXPU.commentTagName = "##" # THIS WON'T WORK!
+    >>> pyRXPU.commentTagName
     '##'
     >>> #LOOKS LIKE IT WORKS - BUT SEE BELOW FOR WHY IT DOESN'T
     >>> rxp.parse('<a><!-- this is another comment comment --></a>', ReturnComments = 1)
     >>> # DOESN'T WORK!
-    >>> ('a', None, [('<!--', None, [' this is another comment comment '], None)], None)
+    >>> (u'a', None, [(u'<!--', None, [u' this is another comment comment '], None)], None)
     >>> #SEE?
 
 What it is useful for is to check against to see if you have been
@@ -347,9 +350,9 @@ returned a comment:
 ::
 
     >>> rxp.parse('<a><!-- comment --></a>', ReturnComments=1)
-    ('a', None, [('<!--', None, [' comment '], None)], None)
+    (u'a', None, [(u'<!--', None, [u' comment '], None)], None)
     >>> rxp.parse('<a><!-- comment --></a>', ReturnComments=1)[2][0][0]
-    '<!--'
+    u'<!--'
     >>> #this returns the comment name tag from the tuple tree...
     >>> rxp.parse('<a><!-- comment --></a>', ReturnComments=1)[2][0][0] is pyRXP.commentTagName
     1
@@ -365,14 +368,14 @@ element in the line) will still be lost:
 
 
     >>> rxp.parse('<tag/><!-- this is a comment about the tag -->', ReturnComments=1)
-    ('tag', None, None, None)
+    (u'tag', None, None, None)
 
 To get around this, you need to use the ``ReturnList`` attribute:
 
 ::
 
     >>> rxp.parse('<tag/><!-- this is a comment about the tag -->', ReturnComments=1, ReturnList=1)
-    [('tag', None, None, None), ('<!--', None, [' this is a comment about the tag '], None)]
+    [(u'tag', None, None, None), (u'<!--', None, [u' this is a comment about the tag '], None)]
     >>>
 
 Since we've seen a number of errors in the preceding paragraphs, it
@@ -412,40 +415,7 @@ considered 'multiple elements' and a pyRXP Error is raised.
     Parse Failed!
 
     >>> rxp.parse('<outer><a></a><b></b></outer>')
-    ('outer', None, [('a', None, [], None), ('b', None, [], None)], None)
-
-3.1.6 A brief note on pyRXPU
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-PyRXPU is the 16-bit Unicode aware version of pyRXP.
-
-In most cases, the only difference in behaviour between pyRXP and pyRXPU
-is that pyRXPU returns Unicode strings. This may be inconveneient for
-some applications as Python doesn't yet handle unicode filenames etc
-terribly well. A work around is to get pyRXPU to return **utf8** using
-the *ReturnUTF8* boolean argument in the parser creation or call. Then
-all values are returned as utf8 encoded strings.
-
-pyRXPU is built to try and do the right thing with both unicode and
-non-unicode strings.
-
-::
-
-    >>> import pyRXPU
-    >>> pyRXPU.Parser()('<a><?works document="hello.doc"?></a>', ReturnProcessingInstructions=1)
-    (u'a', None, [(u'<?', {'name': u'works'}, [u'document="hello.doc"'], None)], None)
-
-In most cases, the only way to tell the difference (*other* than sending
-in Unicode) is by the module name.
-
-::
-
-    >>> import pyRXPU
-    >>> pyRXPU.__name__
-    'pyRXPU'
-    >>> import pyRXP
-    >>> pyRXP.__name__
-    'pyRXP'
+    (u'outer', None, [(u'a', None, [], None), (u'b', None, [], None)], None)
 
 3.2. Validating against a DTD
 -------------------------------------------------------------------------
@@ -495,9 +465,9 @@ pyRXP will attempt to validate it.
 
 
     >> rxp.parse(fn)
-    ('a',
+    (u'a',
      None,
-     ['\n', ('b', None, ['This tag is the contents'], None), '\n'],
+     [u'\n', (u'b', None, [u'This tag is the contents'], None), '\n'],
      None)
     >>>
 
@@ -875,7 +845,7 @@ Example:
 
     >>> rxp.ErrorOnBadCharacterEntities=0
     >>> rxp.parse('<a>&#999;</a>')
-    ('a', None, [''], None)
+    (u'a', None, [u''], None)
 
     >>> rxp.ErrorOnBadCharacterEntities=1
     >>> rxp.parse('<a>&#999;</a>')
@@ -932,7 +902,7 @@ Example:
 
     >>> rxp.ErrorOnUndefinedEntities=0
     >>> rxp.parse('<a>&dud;</a>')
-    ('a', None, ['&dud;'], None)
+    (u'a', None, [u'&dud;'], None)
 
     >>> rxp.ErrorOnUndefinedEntities=1
     >>> rxp.parse('<a>&dud;</a>')
@@ -1000,11 +970,11 @@ Example:
 
     >>> rxp.ExpandCharacterEntities=1
     >>> rxp.parse('<a>&#109;</a>')
-    ('a', None, ['m'], None)
+    (u'a', None, [u'm'], None)
 
     >>> rxp.ExpandCharacterEntities=0
     >>> rxp.parse('<a>&#109;</a>')
-    ('a', None, ['&#109;'], None)
+    (u'a', None, [u'&#109;'], None)
 
 
 
@@ -1030,11 +1000,11 @@ Example:
 
     >>> rxp.ExpandGeneralEntities=0
     >>> rxp.parse('<a>&amp;</a>')
-    ('a', None, ['&amp;'], None)
+    (u'a', None, [u'&amp;'], None)
 
     >>> rxp.ExpandGeneralEntities=1
     >>> rxp.parse('<a>&amp;</a>')
-    ('a', None, ['&#38;'], None)
+    (u'a', None, [u'&#38;'], None)
 
 .. _IgnoreEntities:
 
@@ -1054,11 +1024,11 @@ Example:
 
     >>> rxp.IgnoreEntities=0
     >>> rxp.parse('<a>&amp;</a>')
-    ('a', None, ['&#38;'], None)
+    (u'a', None, [u'&#38;'], None)
 
     >>> rxp.IgnoreEntities=1
     >>> rxp.parse('<a>&amp;</a>')
-    ('a', None, ['&amp;'], None)
+    (u'a', None, [u'&amp;'], None)
 
 .. _IgnorePlacementErrors:
 
@@ -1169,7 +1139,7 @@ Default: 0
 Description:
 
 If this is set, comments are returned as nodes with tag name
-``pyRXP.commentTagName``, otherwise they are ignored.
+``pyRXPU.commentTagName``, otherwise they are ignored.
 
 Example:
 
@@ -1218,11 +1188,11 @@ Example:
     >>> rxp.ReturnComments=1
     >>> rxp.ReturnList=1
     >>> rxp.parse('<!-- comment --><a>Some Text</a><!-- another comment -->')
-    [('<!--', None, [' comment '], None), ('a', None, ['Some Text'], None), ('<!--',
-     None, [' another comment '], None)]
+    [(u'<!--', None, [u' comment '], None), (u'a', None, [u'Some Text'], None), ('<!--',
+     None, [u' another comment '], None)]
     >>> rxp.ReturnList=0
     >>> rxp.parse('<!-- comment --><a>Some Text</a><!-- another comment -->')
-    ('a', None, ['Some Text'], None)
+    (u'a', None, [u'Some Text'], None)
     >>>
 
 See also: :ref:`ReturnComments`
@@ -1248,7 +1218,7 @@ Default: 0
 Description:
 
 If this is set, processing instructions are returned as nodes with
-tagname ``pyRXP.piTagname``, otherwise they are ignored.
+tagname ``pyRXPU.piTagname``, otherwise they are ignored.
 
 .. _SimpleErrorFormat:
 
@@ -1391,7 +1361,7 @@ Example:
 
     >>> rxp.XMLPredefinedEntities=1
     >>> rxp.parse('<a>&amp;</a>')
-    ('a', None, ['&'], None)
+    (u'a', None, [u'&'], None)
 
     >>> rxp.XMLPredefinedEntities=0
     >>> rxp.parse('<a>&amp;</a>')
