@@ -3,10 +3,10 @@ XML parser written in C.
 
 *A quick example:*
 ::
-    >>> import pyRXP
-    >>> rxp=pyRXP.Parser()
+    >>> import pyRXPU
+    >>> rxp=pyRXPU.Parser()
     >>> rxp('<a>some text</a>')
-    (('a', None, ['some text'], None)))
+    ((u'a', None, [u'some text'], None)))
 
 
 RXP is based on the W3C XML 1.0 recommendation of 10th February 1998
