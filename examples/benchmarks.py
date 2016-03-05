@@ -35,13 +35,13 @@ def tupleTreeStats(node):
 ###  pyRXP - our wrapper around Univ of Edinburgh
 
 def getPyRXPParser():
-    import pyRXP
-    p = pyRXP.Parser()
+    import pyRXPU
+    p = pyRXPU.Parser()
     return p
 
 def getNonValidatingPyRXPParser():
-    import pyRXP
-    p = pyRXP.Parser(Validate=0)
+    import pyRXPU
+    p = pyRXPU.Parser(Validate=0)
     return p
 
 def parseWithPyRXP(parser, rawdata):
