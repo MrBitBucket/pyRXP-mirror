@@ -28,7 +28,7 @@ if __name__=='__main__': #NO RUNTESTS
 	#building pyRXP
 	if sys.platform=="win32":
 		LIBS=['wsock32']
-		if sys.version_info[:2]==(3,6) and not int(os.environ.get('PYRXP35LONG','0')):
+		if sys.version_info[:2]>=(3,5) and not int(os.environ.get('PYRXP35LONG','0')):
 			EXT_KWARGS['extra_compile_args'] = ['/Od']
 		#EXT_KWARGS['extra_compile_args'] = ['/Zi']
 		#EXT_KWARGS['extra_link_args'] = ['/DEBUG']
