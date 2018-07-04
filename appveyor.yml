@@ -7,21 +7,20 @@ environment:
     CITOOLS_PASSWORD:
       secure: xbq9uLuFeus1N1x8xSF9f5kAYXY4lkvU4UveYwgcMkM=
     FIRST: 27
-    LAST: 36-x64
-    #LAST: 27-x64
+    LAST: 37-x64
     RLCACHE: windows/pyrxp
 
   matrix:
     - python: 27
     - python: 27-x64
-    - python: 33
-    - python: 33-x64
     - python: 34
     - python: 34-x64
     - python: 35
     - python: 35-x64
     - python: 36
     - python: 36-x64
+    - python: 37
+    - python: 37-x64
 
 matrix:
   fast_finish: true
@@ -32,14 +31,19 @@ install:
   - cmd: echo "C:\Program Files\Microsoft SDKs\Windows\v7.1\Bin\SetEnv.cmd" /x64 > "C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\amd64\vcvars64.bat"
   - cmd: c:\Python27-x64\python.exe -mvirtualenv myenv
   - cmd: myenv\scripts\pip.exe install https://bitbucket.org/MrRLBitBucket/rl_ci_tools/get/tip.tar.gz
+  - cmd: if not exist C:\Python%PYTHON%\python.exe ( echo "!!!!!!!!!!!!!!!!!!!!!!! C:\Python%PYTHON%\python.exe not found" && exit 1 )
+  - cmd: if not exist C:\Python%PYTHON%\scripts\pip.exe ( echo "!!!!!!!!!!!!!!!!!!!!!!! C:\Python%PYTHON%\scripts\pip.exe not found" && exit 1 )
 # - pip install -e .
 
 
 
 build_script:
   - if "%PYTHON%" == "%FIRST%" myenv\scripts\python.exe -mrl_ci_tools clear-cache %RLCACHE%
-  - cmd: pip install wheel
-  - cmd: python -W ignore setup.py -q bdist_wheel
+  - cmd: if not exist C:\Python%PYTHON%\python.exe ( echo "!!!!!!!!!!!!!!!!!!!!!!! C:\Python%PYTHON%\python.exe not found" && exit 1 )
+  - cmd: if not exist C:\Python%PYTHON%\scripts\pip.exe ( echo "!!!!!!!!!!!!!!!!!!!!!!! C:\Python%PYTHON%\scripts\pip.exe not found" && exit 1 )
+  - cmd: c:\Python%PYTHON%\scripts\pip.exe --version
+  - cmd: c:\Python%PYTHON%\scripts\pip.exe install wheel
+  - cmd: c:\Python%PYTHON%\python.exe -W ignore setup.py bdist_wheel
 
 on_success:
   - echo "=============================== Python%PYTHON% on_success"
