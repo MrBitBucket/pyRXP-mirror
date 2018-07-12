@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-#Copyright ReportLab Europe Ltd. 2000-2012
+#Copyright ReportLab Europe Ltd. 2000-2018
 #see license.txt for license details
 #history http://www.reportlab.co.uk/cgi-bin/viewcvs.cgi/public/reportlab/trunk/rl_addons/pyRXP/setup.py
 if __name__=='__main__': #NO RUNTESTS
@@ -67,7 +67,9 @@ if __name__=='__main__': #NO RUNTESTS
 			author_email = "robin@reportlab.com",
 			url = "http://www.reportlab.com",
 			packages = [],
+			licence=open('LICENSE.txt','r').read(),
 			ext_modules = EXT_MODULES,
+			package_data = {'': ['pyRXP-license.txt']},
 			#license = open(os.path.join('rxp','COPYING')).read(),
             classifiers = [
 				'Development Status :: 5 - Production/Stable',
