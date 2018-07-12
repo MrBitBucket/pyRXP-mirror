@@ -72,7 +72,7 @@ if __name__=='__main__': #NO RUNTESTS
             classifiers = [
 				'Development Status :: 5 - Production/Stable',
 				'Intended Audience :: Developers',
-				'License :: OSI Approved :: ReportLab BSD derived',
+				'License :: OSI Approved :: BSD',
 				'Programming Language :: Python',
 				'Programming Language :: C',
 				'Operating System :: Unix',
