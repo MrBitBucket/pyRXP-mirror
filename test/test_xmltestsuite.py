@@ -104,7 +104,7 @@ class test_pyRXPU(unittest.TestCase):
 	def _test_invalid_parse(self,inname):
 		try:
 			self.parse(inname,Validate=0)
-		except self.mod.error,x:
+		except self.mod.error:
 			self.fail('Failed to parse %r in non-validating mode' % inname)
 
 	def _test_invalid_validate(self,inname):

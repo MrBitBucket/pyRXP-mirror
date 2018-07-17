@@ -41,7 +41,8 @@ def goodTest(x,t,tb=0,inOnly=0,**kw):
 		rb = 0
 	except:
 		et, ev, _unused = sys.exc_info()
-		sev = ascii(ev)[6:-3]
+		sev = ascii(ev)
+		sev = sev[6:-3 if sev.endswith(",)") else -2]
 		if sev.startswith('u'): sev = sev[1:]
 		r = '%s %s' % (et.__name__, sev[1:])
 		rb = 1
