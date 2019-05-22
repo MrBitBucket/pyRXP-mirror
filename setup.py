@@ -60,6 +60,8 @@ if __name__=='__main__': #NO RUNTESTS
 								),
 					]
 
+	with open('LICENSE.txt','r') as _:
+		license = _.read()
 	setup(	name = "pyRXP",
 			version = VERSION,
 			description = "Python RXP interface - fast validating XML parser",
@@ -67,7 +69,7 @@ if __name__=='__main__': #NO RUNTESTS
 			author_email = "robin@reportlab.com",
 			url = "http://www.reportlab.com",
 			packages = [],
-			licence=open('LICENSE.txt','r').read(),
+			license=open('LICENSE.txt','r').read(),
 			ext_modules = EXT_MODULES,
 			package_data = {'': ['pyRXP-license.txt']},
 			#license = open(os.path.join('rxp','COPYING')).read(),
