@@ -1,6 +1,7 @@
 /****************************************************************************
-Copyright ReportLab Europe Ltd. 2000-2013 see license.txt for license details
+Copyright ReportLab Europe Ltd. 2000-2019 see license.txt for license details
  ****************************************************************************/
+#define PY_SSIZE_T_CLEAN
 #include <Python.h>
 #if PY_MAJOR_VERSION >= 3
 #	define isPy3
@@ -21,7 +22,7 @@ Copyright ReportLab Europe Ltd. 2000-2013 see license.txt for license details
 #include "stdio16.h"
 #include "version.h"
 #include "namespaces.h"
-#define VERSION "2.1.2"
+#define VERSION "2.2.0"
 #define MAX_DEPTH 256
 #if PY_VERSION_HEX < 0x02050000
 #	define Py_ssize_t int
@@ -141,7 +142,7 @@ PyObject* PyNSName(NSElementDefinition nsed, const Char *name UTF8DECL){
 	if(nsed && (NS=nsed->RXP_NAMESPACE) && (ns=NS->nsname) && (lns=(int)Strlen(ns))){
 		t = Strchr(name,':');
 		if(t) name=t+1;
-		t = (Char*)Malloc((lns+Strlen(name)+3)*sizeof(Char));
+		t = (Char*)Malloc((int)((lns+Strlen(name)+3)*sizeof(Char)));
 		Strncpy(t,braces,1);
 		Strncpy(t+1,ns,lns);
 		Strncpy(t+lns+1,braces+1,1);
@@ -723,7 +724,7 @@ L_err0:						Py_DECREF(result);
 			Py_DECREF(text);
 			return NULL;
 			}
-		textlen = PyBytes_Size(text);
+		textlen = (int)PyBytes_Size(text);
 		buf = Malloc(textlen);
 		memcpy(buf,PyBytes_AS_STRING(text),textlen);
 		f16 = MakeFILE16FromString(buf, textlen, "r");
@@ -801,7 +802,7 @@ PyObject *ProcessSource(Parser p, InputSource source)
 		Py_INCREF(l0);
 		Py_DECREF(stack[0]);
 		if(!__GetFlag(p,ReturnList)){
-			int n = PyList_Size(l0);
+			Py_ssize_t n = PyList_Size(l0);
 			for(i=0;i<n;i++){
 				retVal = PyList_GetItem(l0,i);
 				if(checkFirstProperNode(pd,retVal)) break;
@@ -895,7 +896,7 @@ static Char *myUGECB(Char *name, int namelen, void *info)
 					err = PyBytes_AsStringAndSize(bytes,(char **)&s,&sz);
 					if(!err){
 						/*at last we got a bunch of bytes in our encoding*/
-						r = (Char*)Malloc(sz+sizeof(Char));
+						r = (Char*)Malloc((int)(sz+sizeof(Char)));
 						if(r){
 							memcpy((char *)r,s,sz);
 							for(ir=0;ir<sizeof(Char);ir++) ((char *)r)[sz+ir]=0;
@@ -1042,7 +1043,7 @@ static PyObject* pyRXPParser_parse(pyRXPParser* xself, PyObject* args, PyObject*
 		PyObject *key, *value;
 		i = 0;
 		while(PyDict_Next(kw,&i,&key,&value))
-			if(pyRXPParser_setattr(self, KEY2STR(key), value))	goto L_1;
+			if(pyRXPParser_setattr(self, (char *)KEY2STR(key), value))	goto L_1;
 		}
 
 	if(self->warnCB && self->warnCB!=Py_None){
@@ -1094,7 +1095,7 @@ static PyObject* pyRXPParser_parse(pyRXPParser* xself, PyObject* args, PyObject*
 	/*set up the parsers Stderr stream thing so we get it in a string*/
 	Fclose(Stderr);
 	Stderr = MakeFILE16FromString(errBuf,sizeof(errBuf)-1,"w");
-	f = MakeFILE16FromString(PyBytes_AS_STRING(src),PyBytes_GET_SIZE(src),"r");
+	f = MakeFILE16FromString(PyBytes_AS_STRING(src),(long)PyBytes_GET_SIZE(src),"r");
 	source = SourceFromFILE16(PyBytes_AsString(self->srcName),f);
 	retVal = ProcessSource(p,source);
 	e = source->entity; /*used during FreeParser closing source!*/
@@ -1210,7 +1211,7 @@ Lfree:	pyRXPParser_dealloc(self);
 		PyObject *key, *value;
 		i = 0;
 		while(PyDict_Next(kw,&i,&key,&value))
-			if(pyRXPParser_setattr(self, KEY2STR(key), value)) goto Lfree;
+			if(pyRXPParser_setattr(self, (char *)KEY2STR(key), value)) goto Lfree;
 		}
 
 	return 0;
