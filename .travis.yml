@@ -84,7 +84,7 @@ matrix:
     - MB_PYTHON_VERSION=3.7
 before_install:
 - git clone https://github.com/matthew-brett/multibuild $MULTIBUILD_DIR
-- git clone https://github.com/MrBitBucket/reportlab-mirror $REPO_DIR
+- git clone https://github.com/MrBitBucket/pyRXP-mirror $REPO_DIR
 - source $MULTIBUILD_DIR/common_utils.sh
 - source $MULTIBUILD_DIR/travis_steps.sh
 - before_install
