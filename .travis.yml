@@ -18,6 +18,7 @@ python: 3.5
 sudo: required
 dist: trusty
 services: docker
+
 notifications:
   email:
     recipients:

@@ -69,7 +69,9 @@ install:
         }
   - cmd: echo "C:\Program Files\Microsoft SDKs\Windows\v7.1\Bin\SetEnv.cmd" /x64 > "C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\bin\amd64\vcvars64.bat"
   - cmd: c:\Python37-x64\python.exe -mvirtualenv c:\projects\myenv
-  - cmd: c:\projects\myenv\scripts\pip.exe install git+https://github.com/MrBitBucket/rl-ci-tools-mirror
+  - cmd: c:\projects\myenv\scripts\python.exe -mpip install pip setuptools wheel -U
+  - cmd: c:\projects\myenv\scripts\pip.exe --version
+  - cmd: c:\projects\myenv\scripts\pip.exe install https://hg.reportlab.com/hg-public/rl-ci-tools/archive/tip.tar.gz
   - cmd: if not exist C:\Python%PYVER%\python.exe ( echo "!!!!!!!!!!!!!!!!!!!!!!! C:\Python%PYVER%\python.exe not found" && exit 1 )
   - cmd: if not exist C:\Python%PYVER%\scripts\pip.exe ( echo "!!!!!!!!!!!!!!!!!!!!!!! C:\Python%PYVER%\scripts\pip.exe not found" && exit 1 )
 
@@ -79,7 +81,6 @@ build_script:
   - cmd: if not exist C:\Python%PYVER%\scripts\pip.exe ( echo "!!!!!!!!!!!!!!!!!!!!!!! C:\Python%PYVER%\scripts\pip.exe not found" && exit 1 )
   - cmd: c:\Python%PYVER%\python.exe -mpip install -U pip setuptools wheel
   - cmd: c:\Python%PYVER%\scripts\pip.exe --version
-  - cmd: c:\Python%PYVER%\scripts\pip.exe install wheel
   - cmd: c:\Python%PYVER%\python.exe -W ignore setup.py bdist_wheel
 
 on_success:
