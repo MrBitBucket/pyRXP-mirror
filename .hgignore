@@ -39,3 +39,4 @@ __pycache__
 syntax: regexp
 ^MANIFEST$
 ^test/xmltest
+^examples/hamlet.html

@@ -22,11 +22,20 @@ Copyright ReportLab Europe Ltd. 2000-2019 see license.txt for license details
 #include "stdio16.h"
 #include "version.h"
 #include "namespaces.h"
-#define VERSION "2.2.0"
+#define VERSION "2.2.1"
 #define MAX_DEPTH 256
 #if PY_VERSION_HEX < 0x02050000
 #	define Py_ssize_t int
 #endif
+
+struct __FILE16 {	/*we only need this part*/
+	void *handle;
+	int handle2, handle3;
+	};
+#define __F16A(_f,_a) (((struct __FILE16*)_f)->_a)
+#define __F16H(_f) __F16A(_f,handle)
+#define __F16H2(_f) __F16A(_f,handle2)
+#define __F16H3(_f) __F16A(_f,handle3)
 
 static	int	g_byteorder;
 static	char *g_encname;
@@ -93,6 +102,8 @@ PyObject *RLPy_FindMethod(PyMethodDef *ml, PyObject *self, const char* name){
 #	define PyBytes_AS_STRING	PyString_AS_STRING
 #	define PyBytes_AsString	PyString_AsString
 #	define PyBytes_GET_SIZE		PyString_GET_SIZE
+#	define PyBytes_FromStringAndSize PyString_FromStringAndSize
+#	define PyBytes_FromString PyString_FromString
 #	define KEY2STR(key) PyBytes_AsString(key)
 #endif
 
@@ -658,9 +669,7 @@ static InputSource entity_open(Entity e, void *info)
 	PyObject	*eoCB = pd->eoCB, *text=NULL, *tmp;
 
 	if(e->type==ET_external){
-		PyObject	*arglist,*result;
-		arglist = Py_BuildValue("(s)",e->systemid);	/*NB 8 bit*/
-		result = PyEval_CallObject(eoCB, arglist);
+		PyObject	*result = PyObject_CallFunction(eoCB,"s",e->systemid);
 		if(result){
 			int isTuple=PyTuple_Check(result), isBytes=PyBytes_Check(result);
 			if(!(isBytes||isTuple)&&PyUnicode_Check(result)){
@@ -701,7 +710,6 @@ L_err0:						Py_DECREF(result);
 		else {
 			PyErr_Clear();
 			}
-		Py_DECREF(arglist);
 		}
 	if(text){
 		int textlen;
@@ -829,29 +837,30 @@ PyObject *ProcessSource(Parser p, InputSource source)
 static void myWarnCB(XBit bit, void *info)
 {
 	ParserDetails*	pd=(ParserDetails*)info;
-	PyObject	*arglist;
-	PyObject	*result;
-	FILE16		*str;
-	char		buf[512];
+	PyObject	*a, *result;
+	FILE16		*sf;
 
 	pd->warnErr++;
 	if(pd->warnCB==Py_None) return;
 
-	str = MakeFILE16FromString(buf,sizeof(buf)-1,"w");
-	_ParserPerror(str, pd->p, bit);
-	Fclose(str);
+	sf = MakeStringFILE16("w");
+	_ParserPerror(sf, pd->p, bit);
 #if	CHAR_SIZE==16
+	a = PyUnicode_DecodeUTF16((char *)__F16H(sf), __F16H2(sf), NULL, NULL);
+#else
+	a = PyBytes_FromStringAndSize((char *)__F16H(sf),__F16H2(sf));
+#endif
+#if 0
 	{
-	struct _FILE16 {
-		void *handle;
-		int handle2, handle3;
-		};
-	buf[((struct _FILE16*)str)->handle2] = 0;
+	int i;
+	fprintf(stderr,"myWarnCB: a=%p sf=%p sfh=%p sfh2=%d sfh3=%d\n b=b'", a, sf,__F16H(sf),__F16H2(sf),__F16H3(sf));
+	for(i=0;i<__F16H2(sf);i++) fprintf(stderr,"\\x%02x",((unsigned char *)__F16H(sf))[i]);
+	fprintf(stderr,"'\n");
 	}
 #endif
-	arglist = Py_BuildValue("(" FMTCHAR ")",buf);
-	result = PyEval_CallObject(pd->warnCB, arglist);
-	Py_DECREF(arglist);
+	Fclose(sf);
+	result = PyObject_CallFunctionObjArgs(pd->warnCB, a, NULL);
+	Py_XDECREF(a);
 	if(result){
 		Py_DECREF(result);
 		}
@@ -864,7 +873,6 @@ static void myWarnCB(XBit bit, void *info)
 static Char *myUGECB(Char *name, int namelen, void *info)
 {
 	ParserDetails*	pd=(ParserDetails*)info;
-	PyObject	*arglist;
 	PyObject	*result;
 	PyObject	*uname;
 	PyObject	*bytes;
@@ -876,10 +884,8 @@ static Char *myUGECB(Char *name, int namelen, void *info)
 	if(pd->ugeCB==Py_None) return r;
 	uname = PyUnicode_DecodeUTF16((const char *)name, (Py_ssize_t)(sizeof(Char)*namelen), NULL, &g_byteorder);
 	if(!uname) return r;
-	arglist = Py_BuildValue("(O)",uname);
+	result = PyObject_CallFunctionObjArgs(pd->ugeCB, uname, NULL);
 	Py_DECREF(uname);
-	result = PyEval_CallObject(pd->ugeCB, arglist);
-	Py_DECREF(arglist);
 	if(result){
 		if(PyBytes_Check(result)){
 			/*if we see bytes we asssume it's utf8 encoded*/
