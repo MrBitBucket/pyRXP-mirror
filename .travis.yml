@@ -98,7 +98,7 @@ matrix:
 before_install:
 - git clone https://github.com/matthew-brett/multibuild multibuild
 - cd $MULTIBUILD_DIR
-- git checkout 6b0ddb5281f59d976c8026c082c9d73faf274790
+- git checkout b943f33a92772fd52c2fa38c03d08aac974c53bd
 - cd ..
 - git clone https://github.com/MrBitBucket/pyRXP-mirror $REPO_DIR
 - source $MULTIBUILD_DIR/common_utils.sh
