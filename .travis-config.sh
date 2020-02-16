@@ -11,3 +11,11 @@ function run_tests {
 	[ -f 'xmltest.zip' ] && python test_xmltestsuite.py || true	#force success
 	)
 	}
+
+if [ -n "$IS_OSX" ]; then
+	function repair_wheelhouse {
+		local wheelhouse=$1
+		install_delocate
+		$(dirname $PYTHON_EXE)/delocate-wheel $wheelhouse/*.whl # copies library dependencies into wheel
+	}
+fi
