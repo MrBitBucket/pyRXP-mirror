@@ -14,9 +14,8 @@ env:
   - CITOOLS_USER=rl-wheelbuilder
   - RLCACHE=manylinux/pyrxp
   - secure: Fd6AcZnov1X4elbYdY8EfvILzVCY3XMZTznadvOebm7vO8GcMbQUd3Z2k4wlsqe2KPWUPLDw48usruZ1z2BP19Bf1Q9rjGA3tl0lB52UAx6KtcKlIp6le6vQKNtWysiFTS9jEShMBSBJvUkXXyO0xa0DznzQD5Lzp0WeZGy5b0iicp4FcA22xvQziqN/n1gfjUnxZnXFEEAkBQIFy5FG1VHEkHlk809+Cy8ShJbwuobEY4HiYP9bCyjwZ5rn+XXIX5oyKpHlldfK/GEzBoLBtP7DGTFO1yZlI/cbvMh2+jxY+XNCFLQL4JLDgIhTvRzDav/hnCBdXJa8ztF28Qt6WhqpnqW7cwawvqeLtHKLeGizLo8xM17wi4Q9H7i06a5NZuzURykCsPqiSAIVgLeNj/8NKyTznzFTvMPuqzXZsZmyC9rxXjjmzevqRClboVXXRJJ3mmmMykQ+XRgXEB7aXAYuiHfIyg/XTuq58kutsUyTSMtdwSXihXlSsMteML+j3QPcPbdZVkkgOOxv/sp9Iau9jmVaZDc6gos9eKv0cI1rmNiV5yuyBf0dtb5NVTHxhowtg8QMkxKWQ7B5SWIgWWduRMaIyAUq0zIV2R0aLK7ydh7QetBh7l9srZrtvUbvVBqWQdgj2l1yvOdKJ7jqulC9NxkC/lHXGxmppny4Bsc=
-language: python
-python: 3.5
-sudo: required
+language: shell
+os: linux
 dist: trusty
 services: docker
 
@@ -27,9 +26,7 @@ notifications:
     - live_errors@reportlab.com
     on_success: always
     on_failure: always
-matrix:
-  exclude:
-  - python: 3.5
+jobs:
   include:
   - os: linux
     env:
@@ -49,13 +46,6 @@ matrix:
     - PLAT=i686
   - os: linux
     env:
-    - MB_PYTHON_VERSION=3.5
-  - os: linux
-    env:
-    - MB_PYTHON_VERSION=3.5
-    - PLAT=i686
-  - os: linux
-    env:
     - MB_PYTHON_VERSION=3.6
   - os: linux
     env:
@@ -74,15 +64,18 @@ matrix:
   - os: linux
     env:
     - MB_PYTHON_VERSION=3.8
+    - PLAT=i686
+  - os: linux
+    env:
+    - MB_PYTHON_VERSION=3.9
+  - os: linux
+    env:
+    - MB_PYTHON_VERSION=3.9
     - PLAT=i686
   - os: osx
     language: generic
     env:
     - MB_PYTHON_VERSION=2.7
-  - os: osx
-    language: generic
-    env:
-    - MB_PYTHON_VERSION=3.5
   - os: osx
     language: generic
     env:
@@ -96,10 +89,15 @@ matrix:
     env:
     - MB_PYTHON_VERSION=3.8
     - MB_PYTHON_OSX_VER=10.9
+  - os: osx
+    language: generic
+    env:
+    - MB_PYTHON_VERSION=3.9
+    - MB_PYTHON_OSX_VER=10.9
 before_install:
-- git clone https://github.com/matthew-brett/multibuild multibuild
+- git clone https://github.com/matthew-brett/multibuild $MULTIBUILD_DIR
 - cd $MULTIBUILD_DIR
-- git checkout b943f33a92772fd52c2fa38c03d08aac974c53bd
+- git checkout ec386efaa9e6840b552d845dfc4d597f6b97a2b7
 - cd ..
 - git clone https://github.com/MrBitBucket/pyRXP-mirror $REPO_DIR
 - source $MULTIBUILD_DIR/common_utils.sh
