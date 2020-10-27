@@ -40,3 +40,9 @@ syntax: regexp
 ^MANIFEST$
 ^test/xmltest
 ^examples/hamlet.html
+^tmp/
+^dist/.*\.(?:whl|zip|tar\.gz)
+^pyRXP.egg-info/PKG-INFO
+^pyRXP.egg-info/SOURCES.txt
+^pyRXP.egg-info/dependency_links.txt
+^pyRXP.egg-info/top_level.txt

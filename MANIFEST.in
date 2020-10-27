@@ -1,1 +1,1 @@
-include README.rst test/* docs/* src/* src/rxp/* src/rxp/iso-8859/*
+include README.rst LICENSE.txt test/* docs/* src/* src/rxp/* src/rxp/iso-8859/*
