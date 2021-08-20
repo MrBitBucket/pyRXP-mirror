@@ -21,8 +21,12 @@ Chapter House of York Minster and St Olave's Church, Marygate as
 well as the National Centre for Early Music itself.</p>"""
 
 	def find_dtd():
-		import rlextra
-		return os.path.join(rlextra.__path__[0],'dtd','xhtml1')
+		try:
+			import rlextra
+		except ImportError:
+			return os.path.join(os.path.dirname(__file__),'xhtml1')
+		else:
+			return os.path.join(rlextra.__path__[0],'dtd','xhtml1')
 
 	def ident(x,dtdDir=find_dtd(),path_isfile=os.path.isfile,path_join=os.path.join):
 		bn = x.split('/')[-1]
