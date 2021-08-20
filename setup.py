@@ -1,14 +1,26 @@
 #!/usr/bin/env python
-#Copyright ReportLab Europe Ltd. 2000-2018
+#Copyright ReportLab Europe Ltd. 2000-2021
 #see license.txt for license details
 #history http://www.reportlab.co.uk/cgi-bin/viewcvs.cgi/public/reportlab/trunk/rl_addons/pyRXP/setup.py
 if __name__=='__main__': #NO RUNTESTS
-	import os, sys, shutil, re
+	import os, sys, re
 	pkgDir=os.path.dirname(sys.argv[0])
 	if not pkgDir:
 		pkgDir=os.getcwd()
 	elif not os.path.isabs(pkgDir):
 		pkgDir=os.path.abspath(pkgDir)
+	#test to see if we've a special command
+	if 'test' in sys.argv:
+		if len(sys.argv)!=2:
+			raise ValueError('test command may only be used alone sys.argv[1:]=%s' % repr(sys.argv[1:]))
+		cmd = sys.argv[-1]
+		os.chdir(os.path.join(pkgDir,'test'))
+		
+		r = os.system(' '.join((sys.executable, 'runAll.py')))
+		sys.exit(('!!!!! runAll.py --> %s exited with error !!!!!' % r) if r else r)
+	elif 'null-cmd' in sys.argv or 'null-command' in sys.argv:
+		sys.exit(0)
+
 	try:
 		from setuptools import setup, Extension
 	except ImportError:

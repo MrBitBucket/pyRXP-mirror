@@ -1,14 +1,14 @@
 def test1(n):
-	print 'starting test1'
+	print('starting test1')
 	import pyRXPU, sys
 	xml='<start><tag1>text here</tag1><tag1>more text</tag1></start>'
 	P = i = tup = None
-	for i in xrange(n):
+	for i in range(n):
 		P=pyRXPU.Parser()
 		tup=P(xml)
 		sys.stdout.write('.')
 	del n, pyRXPU, sys, P, tup, xml
-	print '\ntest2 done'
+	print('\ntest1 done')
 
 def test2(n):
 	import os
@@ -34,21 +34,25 @@ well as the National Centre for Early Music itself.</p>"""
 	def run2():
 		import pyRXPU, sys
 		p = pyRXPU.Parser(eoCB = ident)
-		for i in xrange(n):
+		for i in range(n):
 			tree = p.parse(src)
 			sys.stdout.write('.')
 
 	run2()
-	print '\ntest2 done'
+	print('\ntest2 done')
 
-if __name__=='__main__': #noruntests
+def main(N=None):
 	import sys
 	n = [x for x in sys.argv if x.startswith('--test=')]
 	tests = n and [int(x.lstrip('--test=')) for x in n] or [1,2]
 	map(sys.argv.remove,n)
-	if len(sys.argv)>1: n = int(sys.argv[1])
-	else: n = 10000
+	if N is None:
+		if len(sys.argv)>1: N = int(sys.argv[1])
+		else: N = 10000
 	if 1 in tests:
-		test1(n)
+		test1(N)
 	if 2 in tests:
-		test2(n)
+		test2(N)
+
+if __name__=='__main__': #noruntests
+	main()

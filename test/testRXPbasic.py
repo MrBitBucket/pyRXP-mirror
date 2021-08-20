@@ -179,7 +179,7 @@ def _runTests(pyRXP):
 	failTest('<!DOCTYPE foo SYSTEM "badt-have-utf8-content.dtd"><foo><a>aaa</a><b>bbbb</b></foo>',"error Error: Couldn't open dtd entity badt-have-utf8-content.dtd\\n in unnamed entity at line 1 char 51 of [unknown]",inOnly=1,NoNoDTDWarning=0,eoCB=eoDTD)
 	failTest('<!DOCTYPE foo SYSTEM "badt-have-unicode-content.dtd"><foo><a>aaa</a><b>bbbb</b></foo>',"error Error: Couldn't open dtd entity badt-have-unicode-content.dtd\\n in unnamed entity at line 1 char 54 of [unknown]",inOnly=1,NoNoDTDWarning=0,eoCB=eoDTD)
 
-def run():
+def main():
 	#import pyRXP
 	import pyRXPU
 	if '__doc__' in sys.argv:
@@ -189,6 +189,8 @@ def run():
 		msg = ("\n%d tests" % _total) + (', %d FAILED!' % _bad if _bad else '\n\nOK')
 		print(msg)
 		plogn(msg)
+		if _bad:
+			sys.exit('failure in testRXPBasic')
 
 if __name__=='__main__': #noruntests
-	run()
+	main()

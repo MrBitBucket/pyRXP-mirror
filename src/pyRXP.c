@@ -22,7 +22,7 @@ Copyright ReportLab Europe Ltd. 2000-2019 see license.txt for license details
 #include "stdio16.h"
 #include "version.h"
 #include "namespaces.h"
-#define VERSION "2.2.1"
+#define VERSION "2.2.2"
 #define MAX_DEPTH 256
 #if PY_VERSION_HEX < 0x02050000
 #	define Py_ssize_t int

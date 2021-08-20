@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+from __future__ import print_function
 '''
 $Id: test_xmltestsuite.py,v 1.2 2003/04/13 16:04:04 rgbecker Exp $
 Test parsing and validation against James Clark's test cases,
@@ -17,17 +18,11 @@ debug = int(os.environ.get('RL_DEBUG','0'))
 # Debug is to help me trace down memory bugs
 if debug: import time
 
-# 2.2 compatibility - sort of
-try:
-	__file__
-except NameError:
-	__file__ = os.path.join(os.getcwd(),'oops')
-
 class test_pyRXPU(unittest.TestCase):
-	mod = None
+	import pyRXPU as mod
 	
 	def parse(self,filename,**kw):
-		if debug: print >> sys.stderr,'About to parse %s' % filename
+		if debug: print('About to parse %s' % filename, file=sys.stderr)
 		kw = kw.copy()
 		kw['ReturnComments'] = 0
 		kw['ExpandEmpty'] = 1
@@ -40,17 +35,13 @@ class test_pyRXPU(unittest.TestCase):
 		d,n = os.path.split(filename)
 		os.chdir(d)
 		try:
-			f = open(n)
-			xml = f.read()
+			with open(n,'rb') as f:
+				xml = f.read()
 			return parser.parse(xml)
 		finally:
-			try:
-				f.close()
-			except:
-				pass
 			os.chdir(retdir)
-			if debug: print >> sys.stderr,'Done parsing   %s' % filename
-			if debug: print >> sys.stderr,'='*60
+			if debug: print('Done parsing   %s' % filename, file=sys.stderr)
+			if debug: print('='*60, file=sys.stderr)
 			if debug==1: time.sleep(1)
 
 	def getcanonical(self,filename):
@@ -72,7 +63,7 @@ class test_pyRXPU(unittest.TestCase):
 		if attrs is None:
 			attrs = ''
 		else:
-			keys = attrs.keys()
+			keys = list(attrs.keys())
 			keys.sort() # Attributes in lexical order
 			attrs = ' '.join(
 				['%s="%s"' % (k,self._quote(attrs[k])) for k in keys]
@@ -96,16 +87,15 @@ class test_pyRXPU(unittest.TestCase):
 
 	def _test_valid(self,inname,outname):
 		inxml = self.getcanonical(inname)
-		f = codecs.open(outname,mode='r',encoding='utf8')
-		outxml = f.read()
-		f.close()
-		self.assertEqual(inxml,outxml)
+		with codecs.open(outname,mode='rb',encoding='utf8') as f:
+			outxml = f.read()
+		self.assertEqual(inxml,outxml,'%s != %s' % (inname,outname))
 
 	def _test_invalid_parse(self,inname):
 		try:
 			self.parse(inname,Validate=0)
 		except self.mod.error:
-			self.fail('Failed to parse %r in non-validating mode' % inname)
+			pass
 
 	def _test_invalid_validate(self,inname):
 		try:
@@ -132,10 +122,10 @@ def buildup_test(cls=test_pyRXPU,I=[]):
 	try:
 		zipf = zipfile.ZipFile(os.path.join(testdir,'xmltest.zip'))
 	except:
-		print >> sys.stderr, "Can't locate file xmltest.zip\nPerhaps it should be downloaded from\nhttp://www.reportlab.com/ftp/xmltest.zip\nor\nftp://ftp.jclark.com/pub/xml/xmltest.zip\n"
+		print("Can't locate file xmltest.zip\nPerhaps it should be downloaded from\nhttp://www.reportlab.com/ftp/xmltest.zip\nor\nftp://ftp.jclark.com/pub/xml/xmltest.zip\n", file=sys.stderr)
 		raise
-	for zipname in zipf.namelist():
 
+	for zipname in zipf.namelist():
 		# Extract the files if they don't alrady exist
 		osname = os.path.join(*zipname.split('/')) # For non-unixes
 		osname = os.path.join(testdir,osname)
@@ -187,12 +177,13 @@ def buildup_test(cls=test_pyRXPU,I=[]):
 		def doTest(self,inname=inname):
 			self._test_notwf(inname)
 		setattr(cls,mname,doTest)
-	import pyRXPU
-	cls.mod = pyRXPU
+
+def main():
+	I = filter(lambda a: a[:2]=='-I',sys.argv)
+	for i in I: sys.argv.remove(i)
+	I = list(map(lambda x: x[2:],I))
+	buildup_test(I=I)
+	unittest.main(module=__name__)
 
 if __name__ == '__main__':
-	I = filter(lambda a: a[:2]=='-I',sys.argv)
-	map(sys.argv.remove,I)
-	I = map(lambda x: x[2:],I)
-	buildup_test(I=I)
-	unittest.main()
+	main()
