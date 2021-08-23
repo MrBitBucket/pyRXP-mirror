@@ -905,7 +905,7 @@ static Char *myUGECB(Char *name, int namelen, void *info)
 						r = (Char*)Malloc((int)(sz+sizeof(Char)));
 						if(r){
 							memcpy((char *)r,s,sz);
-							for(ir=0;ir<sizeof(Char);ir++) ((char *)r)[sz+ir]=0;
+							for(ir=0;ir<(int)sizeof(Char);ir++) ((char *)r)[sz+ir]=0;
 							}
 						}
 					Py_DECREF(bytes);
