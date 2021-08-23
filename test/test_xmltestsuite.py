@@ -14,13 +14,13 @@ __author__ = 'Stuart Bishop <stuart@stuartbishop.net>'
 
 import unittest, zipfile, sys, os, os.path, codecs
 debug = int(os.environ.get('RL_DEBUG','0'))
+import pyRXPU
 
 # Debug is to help me trace down memory bugs
 if debug: import time
 
 class test_pyRXPU(unittest.TestCase):
-	import pyRXPU as mod
-	
+
 	def parse(self,filename,**kw):
 		if debug: print('About to parse %s' % filename, file=sys.stderr)
 		kw = kw.copy()
@@ -29,7 +29,7 @@ class test_pyRXPU(unittest.TestCase):
 		kw['XMLLessThan'] = 1
 		kw['ReturnProcessingInstructions'] = 1
 		kw['ReturnList'] = 1
-		parser = self.mod.Parser(**kw)
+		parser = pyRXPU.Parser(**kw)
 		# Change directory in case we are loading entities from cwd
 		retdir = os.getcwd()
 		d,n = os.path.split(filename)
@@ -55,9 +55,9 @@ class test_pyRXPU(unittest.TestCase):
 
 		tag,attrs,kids,junk = node
 
-		if tag == self.mod.commentTagName:
+		if tag == pyRXPU.commentTagName:
 			return u'<!--%s-->' % (kids[0])
-		elif tag == self.mod.piTagName:
+		elif tag == pyRXPU.piTagName:
 			return u'<?%s %s?>' % (attrs['name'],kids[0])
 
 		if attrs is None:
@@ -94,14 +94,14 @@ class test_pyRXPU(unittest.TestCase):
 	def _test_invalid_parse(self,inname):
 		try:
 			self.parse(inname,Validate=0)
-		except self.mod.error:
+		except pyRXPU.error:
 			pass
 
 	def _test_invalid_validate(self,inname):
 		try:
 			self.parse(inname,Validate=1)
 			self.fail('Failed to detect validity error in %r' % inname)
-		except self.mod.error:
+		except pyRXPU.error:
 			pass
 
 	def _test_notwf(self,inname):
@@ -110,7 +110,7 @@ class test_pyRXPU(unittest.TestCase):
 			self.fail(
 				'Failed to detect that %r was not well formed' % inname
 				)
-		except self.mod.error:
+		except pyRXPU.error:
 			pass
 
 def buildup_test(cls=test_pyRXPU,I=[]):
