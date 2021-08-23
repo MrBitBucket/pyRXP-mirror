@@ -33,7 +33,7 @@ jobs:
       #CIBW_BEFORE_TEST: pip install --no-cache-dir pyphen
       #CIBW_TEST_REQUIRES: "${{ matrix.os != 'macos-latest' && 'pyphen pycairo rlPyCairo' || 'pyphen' }}"
       CIBW_TEST_SKIP: "*-macosx*"
-      CIBW_TEST_COMMAND: python -c "import sys,os;r=os.system(' '.join((sys.executable,os.path.join(r'{project}','setup.py'),'test')));sys.exit(('!!!!! test command --> %s !!!!!'%r) if r else r)"
+      CIBW_TEST_COMMAND: python -c "import sys,os;r=os.system(' '.join((sys.executable,os.path.join(r'{project}','setup.py'),'test')));sys.exit(('===== test command --> %s ====='%r) if r else r)"
       CIBW_BUILD_VERBOSITY: 3
     strategy:
       fail-fast: true
@@ -67,7 +67,7 @@ jobs:
 
       - uses: actions/upload-artifact@v2
         with:
-          name: lin-win-mac
+          name: pyrxp-lin-win-mac
           path: ./wheelhouse/*.whl
   email:
     name: email

@@ -15,7 +15,6 @@ if __name__=='__main__': #NO RUNTESTS
 			raise ValueError('test command may only be used alone sys.argv[1:]=%s' % repr(sys.argv[1:]))
 		cmd = sys.argv[-1]
 		os.chdir(os.path.join(pkgDir,'test'))
-		
 		r = os.system(' '.join((sys.executable, 'runAll.py')))
 		sys.exit(('!!!!! runAll.py --> %s exited with error !!!!!' % r) if r else r)
 	elif 'null-cmd' in sys.argv or 'null-command' in sys.argv:
@@ -36,6 +35,15 @@ if __name__=='__main__': #NO RUNTESTS
 	LIBRARIES=[]
 	EXT_MODULES = []
 	EXT_KWARGS = {}
+	DEFINE_MACROS=[('CHAR_SIZE', 16)]
+	for ev in ('DEBUG_INPUT',):
+		evv = os.environ.get(ev,'')
+		try:
+			evv = int(evv)
+		except:
+			pass
+		if os.environ.get(ev,''):
+			DEFINE_MACROS.append((ev,evv))
 
 	#building pyRXP
 	if sys.platform=="win32":
@@ -64,7 +72,7 @@ if __name__=='__main__': #NO RUNTESTS
 	EXT_MODULES =	[Extension( 'pyRXPU',
 								[pyRXP_c]+RXPLIBSOURCES,
 								include_dirs=[RXPDIR],
-								define_macros=[('CHAR_SIZE', 16),],
+								define_macros=DEFINE_MACROS,
 								library_dirs=[],
 								# libraries to link against
 								libraries=LIBS,
