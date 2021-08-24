@@ -22,7 +22,7 @@ Copyright ReportLab Europe Ltd. 2000-2019 see license.txt for license details
 #include "stdio16.h"
 #include "version.h"
 #include "namespaces.h"
-#define VERSION "2.2.2"
+#define VERSION "2.2.3"
 #define MAX_DEPTH 256
 #if PY_VERSION_HEX < 0x02050000
 #	define Py_ssize_t int
@@ -115,17 +115,12 @@ PyObject *RLPy_FindMethod(PyMethodDef *ml, PyObject *self, const char* name){
 PyObject* _PYSTRING(const Char* s, int utf8)
 {
 	int	lens = (int)Strlen(s);
-#if defined(Py_UNICODE_WIDE)
 	PyObject *u, *x;
 	u = PyUnicode_DecodeUTF16((char*)s,2*lens,NULL,NULL);
 	if(!utf8 || !u) return u;
 	x = PyUnicode_AsUTF8String(u);
 	Py_DECREF(u);
 	return x;
-#else
-	return utf8 ? PyUnicode_EncodeUTF8((Py_UNICODE*)s, lens, NULL)
-				: PyUnicode_FromUnicode((Py_UNICODE*)s, lens);
-#endif
 }
 #	define PYSTRING(s) _PYSTRING(s,utf8)
 PyObject* PYSTRING8(const char* s)
