@@ -42,8 +42,9 @@ if __name__=='__main__': #NO RUNTESTS
 			evv = int(evv)
 		except:
 			pass
-		if os.environ.get(ev,''):
-			DEFINE_MACROS.append((ev,evv))
+		else:
+			if evv:
+				DEFINE_MACROS.append((ev,evv))
 
 	#building pyRXP
 	if sys.platform=="win32":
