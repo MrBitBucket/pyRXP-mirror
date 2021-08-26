@@ -33,8 +33,8 @@ jobs:
       #CIBW_BEFORE_TEST: pip install --no-cache-dir pyphen
       #CIBW_TEST_REQUIRES: "${{ matrix.os != 'macos-latest' && 'pyphen pycairo rlPyCairo' || 'pyphen' }}"
       #CIBW_TEST_SKIP: "*-macosx*"
-      CIBW_TEST_COMMAND: python -c "{project}/test/runAll.py"
-      CIBW_TEST_COMMAND_WINDOWS: python -c "{project}\test\runAll.py"
+      CIBW_TEST_COMMAND: python "{project}/test/runAll.py"
+      CIBW_TEST_COMMAND_WINDOWS: python "{project}\test\runAll.py"
       CIBW_BUILD_VERBOSITY: 3
     strategy:
       fail-fast: true
