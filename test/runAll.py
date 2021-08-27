@@ -1,5 +1,7 @@
 def main():
     import sys, os
+    sys.__old_stderr__ = sys.stderr
+    sys.__stderr__ = sys.stderr = sys.stdout
     wd = os.path.dirname(os.path.abspath(sys.argv[0]))
     sys.path.insert(0,wd)
     os.chdir(wd)
