@@ -1,5 +1,5 @@
 /****************************************************************************
-Copyright ReportLab Europe Ltd. 2000-2019 see license.txt for license details
+Copyright ReportLab Europe Ltd. 2000-2021 see license.txt for license details
  ****************************************************************************/
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
@@ -22,7 +22,7 @@ Copyright ReportLab Europe Ltd. 2000-2019 see license.txt for license details
 #include "stdio16.h"
 #include "version.h"
 #include "namespaces.h"
-#define VERSION "2.2.3"
+#define VERSION "2.2.4"
 #define MAX_DEPTH 256
 #if PY_VERSION_HEX < 0x02050000
 #	define Py_ssize_t int
@@ -1267,13 +1267,21 @@ static PyTypeObject pyRXPParserType = {
 #ifdef isPy3
 static int _traverse(PyObject *m, visitproc visit, void *arg) {
 	struct module_state *st = GETSTATE(m);
-	Py_VISIT(st->moduleError);
-	Py_VISIT(st->moduleVersion);
-	Py_VISIT(st->RXPVersion);
-	Py_VISIT(st->piTagName);
-	Py_VISIT(st->recordLocation);
-	Py_VISIT(st->parser_flags);
-	Py_VISIT(st->parser);
+#if 0
+	fprintf(stderr,"+++++ _traverse: visit=%8p arg=%8p\n", visit, arg);
+#	define __VISIT(n) fprintf(stderr,"..... " #n "=%8p (%d)\n",st->n, Py_REFCNT(st->n));if(Py_REFCNT(st->n)>0) Py_VISIT(st->n)
+#else
+#	define __VISIT(n) if(Py_REFCNT(st->n)>0) Py_VISIT(st->n)
+#endif
+	__VISIT(moduleError);
+	__VISIT(moduleVersion);
+	__VISIT(RXPVersion);
+	__VISIT(commentTagName);
+	__VISIT(piTagName);
+	__VISIT(CDATATagName);
+	__VISIT(recordLocation);
+	__VISIT(parser_flags);
+	__VISIT(parser);
 	return 0;
 	}
 
@@ -1282,7 +1290,9 @@ static int _clear(PyObject *m) {
 	Py_CLEAR(st->moduleError);
 	Py_CLEAR(st->moduleVersion);
 	Py_CLEAR(st->RXPVersion);
+	Py_CLEAR(st->commentTagName);
 	Py_CLEAR(st->piTagName);
+	Py_CLEAR(st->CDATATagName);
 	Py_CLEAR(st->recordLocation);
 	Py_CLEAR(st->parser_flags);
 	Py_CLEAR(st->parser);
@@ -1372,7 +1382,7 @@ DL_EXPORT(void) MODULEINIT(void)
 #define ADD2MODULE(n,o) PyModule_AddObject(m,n,o);MSTATE(m,o)=o
 	ADD2MODULE("version", moduleVersion);
 	ADD2MODULE("RXPVersion", RXPVersion);
-	ADD2MODULE("error",moduleError);
+	ADD2MODULE("error",moduleError);Py_INCREF(moduleError);
 	ADD2MODULE("piTagName", piTagName);
 	ADD2MODULE("commentTagName", commentTagName);
 	ADD2MODULE("CDATATagName", CDATATagName);
