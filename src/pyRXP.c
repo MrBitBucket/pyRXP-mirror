@@ -3,8 +3,8 @@ Copyright ReportLab Europe Ltd. 2000-2021 see license.txt for license details
  ****************************************************************************/
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
-#if PY_MAJOR_VERSION >= 3
-#	define isPy3
+#if PY_MAJOR_VERSION <= 2
+#	error Only Python-3.x is supported
 #endif
 #include <stdio.h>
 #include <stdlib.h>
@@ -58,7 +58,6 @@ typedef struct {
 	int				flags[2];
 	} pyRXPParser;
 
-#ifdef isPy3
 #	define GETSTATE(m) ((struct module_state*)PyModule_GetState(m))
 #	define MSTATE(m,n) GETSTATE(m)->n
 #	define PPSTATE(p,n) MSTATE(((pyRXPParser *)p)->__instance_module__,n)
@@ -88,29 +87,6 @@ PyObject *RLPy_FindMethod(PyMethodDef *ml, PyObject *self, const char* name){
 #	define RLPy_VISIT(o,n) fprintf(stderr,"..... " #n "=%8p (%d)\n",o->n, (o->n ? Py_REFCNT(o->n): 0);if(o->n && Py_REFCNT(o->n)>0) Py_VISIT(o->n)
 #else
 #	define RLPy_VISIT(o,n) if(o->n && Py_REFCNT(o->n)>0) Py_VISIT(o->n)
-#endif
-#else
-	static	PyObject *g_module;
-	static struct module_state _state;
-#	define GETSTATE(m) (&_state)
-#	define MSTATE(m,n) GETSTATE(m)->n
-#	define PPSTATE(p,n) MSTATE(p,n)
-#	define PDSTATE(pd,n) MSTATE(pd,n)
-#	define PSTATE(p,n) MSTATE(p,n)
-#	include "bytesobject.h"
-#	ifndef PyVarObject_HEAD_INIT
-#		define PyVarObject_HEAD_INIT(type, size) \
-			PyObject_HEAD_INIT(type) size,
-#	endif
-#	ifndef Py_TYPE
-#		define Py_TYPE(ob) (((PyObject*)(ob))->ob_type)
-#	endif
-#	define PyBytes_AS_STRING	PyString_AS_STRING
-#	define PyBytes_AsString	PyString_AsString
-#	define PyBytes_GET_SIZE		PyString_GET_SIZE
-#	define PyBytes_FromStringAndSize PyString_FromStringAndSize
-#	define PyBytes_FromString PyString_FromString
-#	define KEY2STR(key) PyBytes_AsString(key)
 #endif
 
 #if CHAR_SIZE==16
@@ -439,9 +415,7 @@ typedef	struct {
 #if	CHAR_SIZE==16
 		int			utf8;
 #endif
-#ifdef	isPy3
 		pyRXPParser*	__self__;	/*the associated parser object*/
-#endif
 		} ParserDetails;
 
 #define PDGetItem pd->GetItem
@@ -1019,9 +993,7 @@ static PyObject* pyRXPParser_parse(pyRXPParser* xself, PyObject* args, PyObject*
 	pyRXPParser	dummy = *xself;
 	pyRXPParser*	self = &dummy;
 	memset(&CB,0,sizeof(CB));
-#ifdef	isPy3
 	CB.__self__ = self;
-#endif
 	if(self->warnCB) Py_INCREF(self->warnCB);
 	if(self->eoCB) Py_INCREF(self->eoCB);
 	if(self->ugeCB) Py_INCREF(self->ugeCB);
@@ -1185,9 +1157,7 @@ static int pyRXPParser_dealloc(pyRXPParser* self){
 	return 0;
 	}
 
-#ifdef isPy3
 static struct PyModuleDef moduleDef;
-#endif
 static int pyRXPParser_init(pyRXPParser* self, PyObject* args, PyObject* kw)
 {
 	Py_ssize_t	i;
@@ -1200,11 +1170,7 @@ static int pyRXPParser_init(pyRXPParser* self, PyObject* args, PyObject* kw)
 	Py_XDECREF(self->srcName);
 	Py_XDECREF(self->__instance_module__);
 	self->warnCB = self->eoCB = self->ugeCB = self->fourth = self->srcName = NULL;
-#ifdef isPy3
 	self->__instance_module__ = PyState_FindModule(&moduleDef);
-#else
-	self->__instance_module__ = g_module;
-#endif
 	Py_INCREF(self->__instance_module__);
 	if(!(self->srcName=PyBytes_FromString("[unknown]"))){
 		PyErr_SetString(MSTATE(self->__instance_module__,moduleError),"Internal error, memory limit reached!");
@@ -1270,7 +1236,6 @@ static PyTypeObject pyRXPParserType = {
 #if	defined(_DEBUG) && defined(WIN32)
 #	include <crtdbg.h>
 #endif
-#ifdef isPy3
 static int _traverse(PyObject *m, visitproc visit, void *arg) {
 	struct module_state *st = GETSTATE(m);
 	RLPy_VISIT(st,moduleError);
@@ -1318,17 +1283,6 @@ static struct PyModuleDef moduleDef = {
 #	define ERR_RET NULL
 #	define CREATE_MODULE() PyModule_Create(&moduleDef);PyState_AddModule(m,&moduleDef)
 PyMODINIT_FUNC MODULEINIT(void)
-#else
-#	if CHAR_SIZE==16
-#		define MODULEINIT initpyRXPU
-#	else
-#		define MODULEINIT initpyRXP
-#	endif
-#	define OK_RET
-#	define ERR_RET
-#	define CREATE_MODULE() Py_InitModule3(MODULENAME, NULL, __DOC__)
-DL_EXPORT(void) MODULEINIT(void)
-#endif
 {
 	PyObject *m=NULL, *t, *moduleVersion=NULL, *RXPVersion=NULL, *moduleError=NULL,
 			 *piTagName=NULL, *commentTagName=NULL, *CDATATagName=NULL, *recordLocation=NULL,
@@ -1349,10 +1303,6 @@ DL_EXPORT(void) MODULEINIT(void)
 	/* Create the module and add the functions */
 	m = CREATE_MODULE();
 	if(!m)goto err;
-
-#ifndef isPy3
-	g_module = m;
-#endif
 
 	/* Add some symbolic constants to the module */
 	moduleVersion = PyBytes_FromString(VERSION);
