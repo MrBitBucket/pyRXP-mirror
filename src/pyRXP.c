@@ -83,6 +83,12 @@ PyObject *RLPy_FindMethod(PyMethodDef *ml, PyObject *self, const char* name){
 	}
 #	define Py_FindMethod RLPy_FindMethod
 #	define KEY2STR(key) PyUnicode_AsUTF8(key)
+#if 0
+	fprintf(stderr,"+++++ _traverse: visit=%8p arg=%8p\n", visit, arg);
+#	define RLPy_VISIT(o,n) fprintf(stderr,"..... " #n "=%8p (%d)\n",o->n, (o->n ? Py_REFCNT(o->n): 0);if(o->n && Py_REFCNT(o->n)>0) Py_VISIT(o->n)
+#else
+#	define RLPy_VISIT(o,n) if(o->n && Py_REFCNT(o->n)>0) Py_VISIT(o->n)
+#endif
 #else
 	static	PyObject *g_module;
 	static struct module_state _state;
@@ -1157,11 +1163,11 @@ static PyObject* pyRXPParser_getattr(pyRXPParser *self, char *name)
 	}
 
 static int pyRXPParser_traverse(pyRXPParser *self, visitproc visit, void *arg){
-	Py_VISIT(self->srcName);
-	Py_VISIT(self->warnCB);
-	Py_VISIT(self->eoCB);
-	Py_VISIT(self->fourth);
-	Py_VISIT(self->__instance_module__);
+	RLPy_VISIT(self,srcName);
+	RLPy_VISIT(self,warnCB);
+	RLPy_VISIT(self,eoCB);
+	RLPy_VISIT(self,fourth);
+	RLPy_VISIT(self,__instance_module__);
 	return 0;
 	}
 static int pyRXPParser_clear(pyRXPParser* self){
@@ -1267,21 +1273,15 @@ static PyTypeObject pyRXPParserType = {
 #ifdef isPy3
 static int _traverse(PyObject *m, visitproc visit, void *arg) {
 	struct module_state *st = GETSTATE(m);
-#if 0
-	fprintf(stderr,"+++++ _traverse: visit=%8p arg=%8p\n", visit, arg);
-#	define __VISIT(n) fprintf(stderr,"..... " #n "=%8p (%d)\n",st->n, Py_REFCNT(st->n));if(Py_REFCNT(st->n)>0) Py_VISIT(st->n)
-#else
-#	define __VISIT(n) if(Py_REFCNT(st->n)>0) Py_VISIT(st->n)
-#endif
-	__VISIT(moduleError);
-	__VISIT(moduleVersion);
-	__VISIT(RXPVersion);
-	__VISIT(commentTagName);
-	__VISIT(piTagName);
-	__VISIT(CDATATagName);
-	__VISIT(recordLocation);
-	__VISIT(parser_flags);
-	__VISIT(parser);
+	RLPy_VISIT(st,moduleError);
+	RLPy_VISIT(st,moduleVersion);
+	RLPy_VISIT(st,RXPVersion);
+	RLPy_VISIT(st,commentTagName);
+	RLPy_VISIT(st,piTagName);
+	RLPy_VISIT(st,CDATATagName);
+	RLPy_VISIT(st,recordLocation);
+	RLPy_VISIT(st,parser_flags);
+	RLPy_VISIT(st,parser);
 	return 0;
 	}
 
