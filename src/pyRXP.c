@@ -58,11 +58,31 @@ typedef struct {
 	int				flags[2];
 	} pyRXPParser;
 
+#if defined(__APPLE__)
+#	define MULTIPHASE_INIT 0
+#endif
+#if MULTIPHASE_INIT!=0
 #	define GETSTATE(m) ((struct module_state*)PyModule_GetState(m))
 #	define MSTATE(m,n) GETSTATE(m)->n
 #	define PPSTATE(p,n) MSTATE(((pyRXPParser *)p)->__instance_module__,n)
 #	define PDSTATE(pd,n) PPSTATE(((ParserDetails*)pd)->__self__,n)
 #	define PSTATE(p,n) PDSTATE(((Parser)p)->warning_callback_arg,n)
+#	define sizeof_module_state sizeof(struct module_state)
+#	define module_traverse _module_traverse
+#	define module_clear _module_clear
+#else
+	static	PyObject *g_module;
+	static struct module_state _state;
+#	define GETSTATE(m) (&_state)
+#	define MSTATE(m,n) GETSTATE(m)->n
+#	define PPSTATE(p,n) MSTATE(p,n)
+#	define PDSTATE(pd,n) MSTATE(pd,n)
+#	define PSTATE(p,n) MSTATE(p,n)
+#	define sizeof_module_state -1
+#	define module_traverse NULL
+#	define module_clear NULL
+#endif
+
 #	define PyInt_FromLong	PyLong_FromLong
 #	define PyInt_AsLong	PyLong_AsLong
 #	define staticforward static
@@ -82,12 +102,7 @@ PyObject *RLPy_FindMethod(PyMethodDef *ml, PyObject *self, const char* name){
 	}
 #	define Py_FindMethod RLPy_FindMethod
 #	define KEY2STR(key) PyUnicode_AsUTF8(key)
-#if 0
-	fprintf(stderr,"+++++ _traverse: visit=%8p arg=%8p\n", visit, arg);
-#	define RLPy_VISIT(o,n) fprintf(stderr,"..... " #n "=%8p (%d)\n",o->n, (o->n ? Py_REFCNT(o->n): 0);if(o->n && Py_REFCNT(o->n)>0) Py_VISIT(o->n)
-#else
-#	define RLPy_VISIT(o,n) if(o->n && Py_REFCNT(o->n)>0) Py_VISIT(o->n)
-#endif
+#define RLPy_VISIT(o,n) if(o->n && Py_REFCNT(o->n)>0) Py_VISIT(o->n)
 
 #if CHAR_SIZE==16
 #	define MODULENAME "pyRXPU"
@@ -1236,8 +1251,10 @@ static PyTypeObject pyRXPParserType = {
 #if	defined(_DEBUG) && defined(WIN32)
 #	include <crtdbg.h>
 #endif
-static int _traverse(PyObject *m, visitproc visit, void *arg) {
+#if MULTIPHASE_INIT!=0
+static int _module_traverse(PyObject *m, visitproc visit, void *arg) {
 	struct module_state *st = GETSTATE(m);
+/*fprintf(stderr,"+++++ _traverse: visit=%8p arg=%8p MULTIPHASE_INIT=%d\n", visit, arg, MULTIPHASE_INIT);*/
 	RLPy_VISIT(st,moduleError);
 	RLPy_VISIT(st,moduleVersion);
 	RLPy_VISIT(st,RXPVersion);
@@ -1250,7 +1267,7 @@ static int _traverse(PyObject *m, visitproc visit, void *arg) {
 	return 0;
 	}
 
-static int _clear(PyObject *m) {
+static int _module_clear(PyObject *m) {
 	struct module_state *st = GETSTATE(m);
 	Py_CLEAR(st->moduleError);
 	Py_CLEAR(st->moduleVersion);
@@ -1263,15 +1280,16 @@ static int _clear(PyObject *m) {
 	Py_CLEAR(st->parser);
 	return 0;
 	}
+#endif
 static struct PyModuleDef moduleDef = {
 	PyModuleDef_HEAD_INIT,
 	MODULENAME,
 	__DOC__,
-	sizeof(struct module_state),
+	sizeof_module_state,
 	NULL,
 	NULL,
-	_traverse,
-	_clear,
+	module_traverse,
+	module_clear,
 	NULL
 	};
 #	if CHAR_SIZE==16
@@ -1304,6 +1322,9 @@ PyMODINIT_FUNC MODULEINIT(void)
 	m = CREATE_MODULE();
 	if(!m)goto err;
 
+#if MULTIPHASE_INIT==0
+	g_module = m;
+#endif
 	/* Add some symbolic constants to the module */
 	moduleVersion = PyBytes_FromString(VERSION);
 	if(!moduleVersion)goto err;

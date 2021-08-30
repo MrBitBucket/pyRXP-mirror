@@ -35,16 +35,16 @@ if __name__=='__main__': #NO RUNTESTS
 	LIBRARIES=[]
 	EXT_MODULES = []
 	EXT_KWARGS = {}
-	DEFINE_MACROS=[('CHAR_SIZE', 16)]
-	for ev in ('DEBUG_INPUT',):
+	DEFINE_MACROS=dict(CHAR_SIZE=16, MULTIPHASE_INIT=1)
+	for ev in ('DEBUG_INPUT','MULTIPHASE_INIT'):
 		evv = os.environ.get(ev,'')
 		try:
 			evv = int(evv)
 		except:
 			pass
 		else:
-			if evv:
-				DEFINE_MACROS.append((ev,evv))
+			DEFINE_MACROS[ev] = evv
+	DEFINE_MACROS = list(DEFINE_MACROS.items())
 
 	#building pyRXP
 	if sys.platform=="win32":
