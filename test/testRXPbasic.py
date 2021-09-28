@@ -1,11 +1,5 @@
-from __future__ import unicode_literals
-try:
-	from future_builtins import ascii
-except ImportError:
-	pass
-import traceback, sys, os
-_pyRXP = None
-_logf = open('pyRXP_test.log','w')
+import traceback, sys, os, pyRXPU
+_logf = None
 _bad = 0
 _total = 0
 def _dot(c,write=sys.stdout.write):
@@ -36,7 +30,7 @@ def plogn(x):
 
 def goodTest(x,t,tb=0,inOnly=0,**kw):
 	try:
-		P=_pyRXP.Parser(**kw)
+		P=pyRXPU.Parser(**kw)
 		r = P(x)
 		rb = 0
 	except:
@@ -56,7 +50,7 @@ def goodTest(x,t,tb=0,inOnly=0,**kw):
 	if type(r) is type(''):
 		r = r.replace('\r','\\r')
 		r = r.replace('\n','\\n')
-	plog('%s.Parser(%s)(%s)'%(_pyRXP.__name__,s[2:],repr(x)))
+	plog('%s.Parser(%s)(%s)'%(pyRXPU.__name__,s[2:],repr(x)))
 	if (inOnly and t in r) or (r==t) and rb==tb:
 		plogn('OK')
 		_dot('.')
@@ -104,12 +98,10 @@ DTDs = 	{
 def eoDTD(s):
 	return DTDs.get(os.path.basename(s),None)
 
-def _runTests(pyRXP):
-	global _pyRXP
-	_pyRXP = pyRXP
-	plogn('############# Testing %s=%8.8X'%(pyRXP.__name__,id(_pyRXP)))
+def _runTests():
+	plogn('############# Testing %s=%8.8X'%(pyRXPU.__name__,id(pyRXPU)))
 	try:
-		for k,v in pyRXP.parser_flags.items(): eval('pyRXP.Parser(%s=%d)' % (k,v))
+		for k,v in pyRXPU.parser_flags.items(): eval('pyRXPU.Parser(%s=%d)' % (k,v))
 		plogn('Parser keywords OK')
 		_dot('.')
 	except:
@@ -117,7 +109,7 @@ def _runTests(pyRXP):
 		plogn('Parser keywords BAD')
 		_dot('E')
 	try:
-		for k,v in pyRXP.parser_flags.items(): eval('pyRXP.Parser()("<a/>",%s=%d)' % (k,v))
+		for k,v in pyRXPU.parser_flags.items(): eval('pyRXPU.Parser()("<a/>",%s=%d)' % (k,v))
 		plogn('Parser().parse keywords OK')
 		_dot('.')
 	except:
@@ -126,7 +118,7 @@ def _runTests(pyRXP):
 		_dot('E')
 
 	try:
-		P=_pyRXP.Parser()
+		P=pyRXPU.Parser()
 		plog('Parser()=%r' % P)
 		plog('Parser().__class__=%r' % P.__class__)
 		plog('type(Parser())=%r\n\n' % type(P))
@@ -156,8 +148,8 @@ def _runTests(pyRXP):
 	goodTest('<!--comment--><a/>',('a', None, None, None),ReturnComments=1)
 	failTest('<?xml version="1.0" encoding="LATIN-1"?></a>',"error Unknown declared encoding LATIN-1\nInternal error, ParserPush failed!\n")
 	goodTest('<?work version="1.0" encoding="utf-8"?><a/>',[('<?',{'name':'work'}, ['version="1.0" encoding="utf-8"'],None), ('a', None, None, None)],IgnorePlacementErrors=1,ReturnList=1,ReturnProcessingInstructions=1,ReturnComments=1)
-	goodTest('<a>\nHello\n<b>cruel\n</b>\nWorld\n</a>',('a', None, ['\nHello\n', ('b', None, ['cruel\n'], (('aaa', 2, 3), ('aaa', 3, 4))), '\nWorld\n'], (('aaa', 0, 3), ('aaa', 5, 4))),fourth=pyRXP.recordLocation,srcName='aaa')
-	goodTest('<a aname="ANAME" aother="AOTHER">\nHello\n<b bname="BNAME" bother="BOTHER">cruel\n</b>\nWorld\n</a>',('a', {"aname": "ANAME", "aother": "AOTHER"}, ['\nHello\n', ('b', {"bname": "BNAME", "bother": "BOTHER"}, ['cruel\n'], (('aaa', 2, 33), ('aaa', 3, 4))), '\nWorld\n'], (('aaa', 0, 33), ('aaa', 5, 4))),fourth=pyRXP.recordLocation,srcName='aaa')
+	goodTest('<a>\nHello\n<b>cruel\n</b>\nWorld\n</a>',('a', None, ['\nHello\n', ('b', None, ['cruel\n'], (('aaa', 2, 3), ('aaa', 3, 4))), '\nWorld\n'], (('aaa', 0, 3), ('aaa', 5, 4))),fourth=pyRXPU.recordLocation,srcName='aaa')
+	goodTest('<a aname="ANAME" aother="AOTHER">\nHello\n<b bname="BNAME" bother="BOTHER">cruel\n</b>\nWorld\n</a>',('a', {"aname": "ANAME", "aother": "AOTHER"}, ['\nHello\n', ('b', {"bname": "BNAME", "bother": "BOTHER"}, ['cruel\n'], (('aaa', 2, 33), ('aaa', 3, 4))), '\nWorld\n'], (('aaa', 0, 33), ('aaa', 5, 4))),fourth=pyRXPU.recordLocation,srcName='aaa')
 	goodTest('<a><![CDATA[<a>]]></a>',('a', None, ['<a>'], None))
 	goodTest('<a><![CDATA[<a>]]></a>',('a', None, [('<![CDATA[', None, ['<a>'], None)], None),ReturnCDATASectionsAsTuples=1)
 	goodTest('''<foo:A xmlns:foo="http://www.foo.org/"><foo:B><foo:C xmlns:foo="http://www.bar.org/"><foo:D>abcd</foo:D></foo:C></foo:B><foo:B/><A>bare A<C>bare C</C><B>bare B</B></A><A xmlns="http://default.reportlab.com/" xmlns:bongo="http://bongo.reportlab.com/">default ns A<bongo:A>bongo A</bongo:A><B>default NS B</B></A></foo:A>''',('{http://www.foo.org/}A', {'xmlns:foo': 'http://www.foo.org/'}, [('{http://www.foo.org/}B', None, [('{http://www.bar.org/}C', {'xmlns:foo': 'http://www.bar.org/'}, [('{http://www.bar.org/}D', None, ['abcd'], None)], None)], None), ('{http://www.foo.org/}B', None, None, None), ('A', None, ['bare A', ('C', None, ['bare C'], None), ('B', None, ['bare B'], None)], None), ('{http://default.reportlab.com/}A', {'xmlns': 'http://default.reportlab.com/', 'xmlns:bongo': 'http://bongo.reportlab.com/'}, ['default ns A', ('{http://bongo.reportlab.com/}A', None, ['bongo A'], None), ('{http://default.reportlab.com/}B', None, ['default NS B'], None)], None)], None),XMLNamespaces=1,ReturnNamespaceAttributes=1)
@@ -180,17 +172,17 @@ def _runTests(pyRXP):
 	failTest('<!DOCTYPE foo SYSTEM "badt-have-unicode-content.dtd"><foo><a>aaa</a><b>bbbb</b></foo>',"error Error: Couldn't open dtd entity badt-have-unicode-content.dtd\\n in unnamed entity at line 1 char 54 of [unknown]",inOnly=1,NoNoDTDWarning=0,eoCB=eoDTD)
 
 def main():
-	#import pyRXP
-	import pyRXPU
 	if '__doc__' in sys.argv:
 		print(pyRXPU.__doc__)
 	else:
-		if pyRXPU: _runTests(pyRXPU)
-		msg = ("\n%d tests" % _total) + (', %d FAILED!' % _bad if _bad else '\n\nOK')
-		print(msg)
-		plogn(msg)
-		if _bad:
-			sys.exit('failure in testRXPBasic')
+		global _logf
+		with open('pyRXP_test.log','w') as _logf:
+			_runTests()
+			msg = ("\n%d tests" % _total) + (', %d FAILED!' % _bad if _bad else '\n\nOK')
+			print(msg)
+			plogn(msg)
+			if _bad:
+				sys.exit('failure in testRXPBasic')
 
 if __name__=='__main__': #noruntests
 	main()
