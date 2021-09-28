@@ -3,6 +3,15 @@
 #define SOCKETS_IMPLEMENTED
 #define HAVE_LONG_LONG_INT
 
+#define _stringize(n) #n
+#define stringize(n) _stringize(n)
+#ifdef DEBUG_PYRXP
+/*system.h debugging on*/
+#	define RLDEBUG(...) fprintf(stderr,__VA_ARGS__)
+#else
+#	define RLDEBUG(...)
+#endif
+
 #define STD_API
 #define XML_API
 #define WIN_IMP
