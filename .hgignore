@@ -46,3 +46,4 @@ syntax: regexp
 ^pyRXP.egg-info/SOURCES.txt
 ^pyRXP.egg-info/dependency_links.txt
 ^pyRXP.egg-info/top_level.txt
+^pyRXPU.*\.(pyd|so)

@@ -35,8 +35,8 @@ if __name__=='__main__': #NO RUNTESTS
 	LIBRARIES=[]
 	EXT_MODULES = []
 	EXT_KWARGS = {}
-	DEFINE_MACROS=dict(CHAR_SIZE=16, MULTIPHASE_INIT=1)
-	for ev in ('DEBUG_INPUT','MULTIPHASE_INIT'):
+	DEFINE_MACROS=dict(CHAR_SIZE=16)
+	for ev in ('DEBUG_PYRXP',):
 		evv = os.environ.get(ev,'')
 		try:
 			evv = int(evv)
@@ -66,7 +66,8 @@ if __name__=='__main__': #NO RUNTESTS
 	pyRXPDir = os.path.join(pkgDir,'src')
 	RXPLIBSOURCES=[]
 	pyRXP_c = os.path.join(pyRXPDir,'pyRXP.c')
-	VERSION = re.search(r'^#\s*define\s+VERSION\s*"([^"]+)"',open(pyRXP_c,'r').read(),re.MULTILINE)
+	with open(pyRXP_c,'r') as _:
+		VERSION = re.search(r'^#\s*define\s+VERSION\s*"([^"]+)"',_.read(),re.MULTILINE)
 	VERSION = VERSION and VERSION.group(1) or 'unknown'
 	RXPDIR=os.path.join(pyRXPDir,'rxp')
 	RXPLIBSOURCES= [os.path.join(RXPDIR,f) for f in rxpFiles]
@@ -90,10 +91,9 @@ if __name__=='__main__': #NO RUNTESTS
 			author_email = "robin@reportlab.com",
 			url = "http://www.reportlab.com",
 			packages = [],
-			license=open('LICENSE.txt','r').read(),
+			license=license,
 			ext_modules = EXT_MODULES,
 			package_data = {'': ['pyRXP-license.txt']},
-			#license = open(os.path.join('rxp','COPYING')).read(),
             classifiers = [
 				'Development Status :: 5 - Production/Stable',
 				'Intended Audience :: Developers',
