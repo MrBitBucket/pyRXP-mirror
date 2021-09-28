@@ -22,7 +22,7 @@ Copyright ReportLab Europe Ltd. 2000-2021 see license.txt for license details
 #include "stdio16.h"
 #include "version.h"
 #include "namespaces.h"
-#define VERSION "2.2.4"
+#define VERSION "3.0.0"
 #define MAX_DEPTH 256
 #if PY_VERSION_HEX < 0x02050000
 #	define Py_ssize_t int
@@ -40,56 +40,35 @@ struct __FILE16 {	/*we only need this part*/
 static	int	g_byteorder;
 static	char *g_encname;
 
-struct module_state {
-	PyObject *moduleError;
-	PyObject *moduleVersion;
-	PyObject *RXPVersion;
-	PyObject *commentTagName;
-	PyObject *piTagName;
-	PyObject *CDATATagName;
-	PyObject *recordLocation;
-	PyObject *parser_flags;
-	PyObject *parser;
-	};
-
 typedef struct {
 	PyObject_HEAD
 	PyObject		*warnCB, *eoCB, *ugeCB, *srcName, *fourth, *__instance_module__;
 	int				flags[2];
 	} pyRXPParser;
 
-#if defined(__APPLE__)
-#	define MULTIPHASE_INIT 0
-#endif
-#if MULTIPHASE_INIT!=0
-#	define GETSTATE(m) ((struct module_state*)PyModule_GetState(m))
-#	define MSTATE(m,n) GETSTATE(m)->n
-#	define PPSTATE(p,n) MSTATE(((pyRXPParser *)p)->__instance_module__,n)
-#	define PDSTATE(pd,n) PPSTATE(((ParserDetails*)pd)->__self__,n)
-#	define PSTATE(p,n) PDSTATE(((Parser)p)->warning_callback_arg,n)
-#	define sizeof_module_state sizeof(struct module_state)
-#	define module_traverse _module_traverse
-#	define module_clear _module_clear
-#else
-	static	PyObject *g_module;
-	static struct module_state _state;
-#	define GETSTATE(m) (&_state)
-#	define MSTATE(m,n) GETSTATE(m)->n
-#	define PPSTATE(p,n) MSTATE(p,n)
-#	define PDSTATE(pd,n) MSTATE(pd,n)
-#	define PSTATE(p,n) MSTATE(p,n)
-#	define sizeof_module_state -1
-#	define module_traverse NULL
-#	define module_clear NULL
-#endif
+#define MSTATE(m,n) _moduleGetAttr(m,stringize(n))
+#define PPSTATE(p,n) MSTATE(((pyRXPParser *)p)->__instance_module__,n)
+#define PDSTATE(pd,n) PPSTATE(((ParserDetails*)pd)->__self__,n)
+#define PSTATE(p,n) PDSTATE(((Parser)p)->warning_callback_arg,n)
 
-#	define PyInt_FromLong	PyLong_FromLong
-#	define PyInt_AsLong	PyLong_AsLong
-#	define staticforward static
-#	define statichere static
-	/*cmp(a,b) = (a > b) - (a < b) in Python3*/
-#	define PyObject_Cmp(a,b,i) *i=(PyObject_RichCompareBool(a, b, Py_GT)-PyObject_RichCompareBool(a, b, Py_LT))
-#	define PyNumber_Int	PyNumber_Long
+static PyObject *moduleError = NULL;
+
+static PyObject *_moduleGetAttr(PyObject *m, const char *a) {
+    PyObject *v = NULL;
+
+    v = PyDict_GetItemString(PyModule_GetDict(m), a);
+    if (! v) {
+        PyErr_Format(PyExc_AttributeError, "Module '%s' has no attribute '%s'.", PyModule_GetName(m), a);
+        return NULL;
+    	}
+	return v;
+}
+
+#define PyInt_FromLong	PyLong_FromLong
+#define PyInt_AsLong	PyLong_AsLong
+/*cmp(a,b) = (a > b) - (a < b) in Python3*/
+#define PyObject_Cmp(a,b,i) *i=(PyObject_RichCompareBool(a, b, Py_GT)-PyObject_RichCompareBool(a, b, Py_LT))
+#define PyNumber_Int	PyNumber_Long
 PyObject *RLPy_FindMethod(PyMethodDef *ml, PyObject *self, const char* name){
 	for(;ml->ml_name!=NULL;ml++)
 		if(name[0]==ml->ml_name[0] && strcmp(name+1,ml->ml_name+1)==0) return PyCFunction_New(ml, self);
@@ -100,15 +79,23 @@ PyObject *RLPy_FindMethod(PyMethodDef *ml, PyObject *self, const char* name){
 		}
 	return NULL;
 	}
-#	define Py_FindMethod RLPy_FindMethod
-#	define KEY2STR(key) PyUnicode_AsUTF8(key)
-#define RLPy_VISIT(o,n) if(o->n && Py_REFCNT(o->n)>0) Py_VISIT(o->n)
+#define Py_FindMethod RLPy_FindMethod
+#define KEY2STR(key) PyUnicode_AsUTF8(key)
+#if	defined(DEBUG_PYRXP) && defined(WIN32)
+	include <crtdbg.h>
+#endif
+#if 0 && defined(DEBUG_PYRXP)
+#	define RLPy_VISIT(o,n) fprintf(stderr,"VISIT o->" stringize(n) "=%p |o->" stringize(n) "|=%d\n", o->n, o->n ? Py_REFCNT(o->n) : -1317);if(o->n && Py_REFCNT(o->n)>0) Py_VISIT(o->n)
+#	define RLPy_CLEAR(o,n) fprintf(stderr,"CLEAR o->" stringize(n) "=%p |o->" stringize(n) "|=%d\n", o->n, o->n ? Py_REFCNT(o->n) : -1317); Py_CLEAR(o->n)
+#else
+#	define RLPy_VISIT(o,n) if(o->n && Py_REFCNT(o->n)>0) Py_VISIT(o->n)
+#	define RLPy_CLEAR(o,n) Py_CLEAR(o->n)
+#endif
 
-#if CHAR_SIZE==16
-#	define MODULENAME "pyRXPU"
-#	define UTF8DECL ,int utf8
-#	define UTF8PASS ,utf8
-#	define PYNSNAME(nsed, name) PyNSName(nsed,name,utf8)
+#define MODULENAME "pyRXPU"
+#define UTF8DECL ,int utf8
+#define UTF8PASS ,utf8
+#define PYNSNAME(nsed, name) PyNSName(nsed,name,utf8)
 PyObject* _PYSTRING(const Char* s, int utf8)
 {
 	int	lens = (int)Strlen(s);
@@ -120,22 +107,8 @@ PyObject* _PYSTRING(const Char* s, int utf8)
 	return x;
 }
 #	define PYSTRING(s) _PYSTRING(s,utf8)
-PyObject* PYSTRING8(const char* s)
-{
-	return PyUnicode_DecodeUTF8((const char*)s, (int)strlen(s), NULL);
-}
 #	define EmptyCharStr (Char*)"\0"
 #	define FMTCHAR "u"
-#else
-#	define MODULENAME "pyRXP"
-#	define UTF8DECL
-#	define UTF8PASS
-#	define PYNSNAME(nsed, name) PyNSName(nsed,name)
-#	define PYSTRING(s) PyString_FromString(s)
-#	define PYSTRING8(s) PyString_FromString(s)
-#	define EmptyCharStr (Char*)""
-#	define FMTCHAR "s"
-#endif
 PyObject* PyNSName(NSElementDefinition nsed, const Char *name UTF8DECL){
 	Char		*t, *ns;
 	Namespace	NS;
@@ -411,9 +384,6 @@ static struct {char* k;long v;} flag_vals[]={
 #endif
 #define __GetFlag(p, flag) \
   ((((flag) < 32) ? ((p)->flags[0] & (1u << (flag))) : ((p)->flags[1] & (1u << ((flag)-32))))!=0)
-#ifdef	_DEBUG
-#	define Py_REFCOUNT(op) ((op)->ob_refcnt)
-#endif
 
 typedef	struct {
 		Parser		p;
@@ -467,7 +437,7 @@ static	PyObject* _getSrcInfo(ParserDetails *pd)
 	PyObject *t = PyTuple_New(3);
 	const char *name = EntityDescription(s->entity);
 	int lnum, cnum;
-	PyTuple_SET_ITEM(t,0,PYSTRING8(name));
+	PyTuple_SET_ITEM(t,0,PyUnicode_FromString(name));
 	switch(SourceLineAndChar(s, &lnum, &cnum)){
 		case 0:
 		case 1:
@@ -677,13 +647,13 @@ static InputSource entity_open(Entity e, void *info)
 					if(PyUnicode_Check(tmp)){
 						tmp = PyUnicode_AsEncodedString(tmp,"utf8","strict");
 						if(!tmp){
-							PyErr_SetString(PDSTATE(pd,moduleError),"eoCB could not convert tuple URI (element 0) from unicode");
+							PyErr_SetString(moduleError,"eoCB could not convert tuple URI (element 0) from unicode");
 L_err0:						Py_DECREF(result);
 							return NULL;
 							}
 						}
 					else if(!PyBytes_Check(tmp)){
-						PyErr_SetString(PDSTATE(pd,moduleError),"eoCB could not convert tuple URI (element 0) from unknown type");
+						PyErr_SetString(moduleError,"eoCB could not convert tuple URI (element 0) from unknown type");
 						goto L_err0;
 						}
 					e->systemid = strdup8(PyBytes_AS_STRING(tmp));
@@ -712,13 +682,13 @@ L_err0:						Py_DECREF(result);
 				text = tmp;
 				}
 			else {
-				PyErr_SetString(PDSTATE(pd,moduleError),"eoCB could not convert tuple text value");
+				PyErr_SetString(moduleError,"eoCB could not convert tuple text value");
 				Py_DECREF(text);
 				return NULL;
 				}
 			}
 		else if(!PyBytes_Check(text)){
-			PyErr_SetString(PDSTATE(pd,moduleError),"eoCB returned tuple with non-text value");
+			PyErr_SetString(moduleError,"eoCB returned tuple with non-text value");
 			Py_DECREF(text);
 			return NULL;
 			}
@@ -744,14 +714,14 @@ void PyErr_FromStderr(Parser p, char *msg){
 	if(p->errbuf) Fprintf(Stderr,"%s\n", p->errbuf);
 	Fprintf(Stderr,"%s\n", msg);
 	buf[((struct _FILE16*)Stderr)->handle2] = 0;
-	PyErr_SetString(PSTATE(p,moduleError),buf);
+	PyErr_SetString(moduleError,buf);
 #else
 	PyObject* t;
 	if(p->errbuf) Fprintf(Stderr,"%s\n", p->errbuf);
 	Fprintf(Stderr,"%s\n", msg);
 	t = PyUnicode_DecodeUTF16((const char *)buf, (Py_ssize_t)(((struct _FILE16*)Stderr)->handle2), NULL, &g_byteorder);
 	if(!t) return;
-	PyErr_SetObject(PSTATE(p,moduleError),t);
+	PyErr_SetObject(moduleError,t);
 	Py_DECREF(t);
 #endif
 }
@@ -1005,6 +975,7 @@ static PyObject* pyRXPParser_parse(pyRXPParser* xself, PyObject* args, PyObject*
 	ParserDetails	CB;
 	Parser		p;
 	Entity		e;
+	Dtd			pdtd;
 	pyRXPParser	dummy = *xself;
 	pyRXPParser*	self = &dummy;
 	memset(&CB,0,sizeof(CB));
@@ -1093,9 +1064,10 @@ static PyObject* pyRXPParser_parse(pyRXPParser* xself, PyObject* args, PyObject*
 	source = SourceFromFILE16(PyBytes_AsString(self->srcName),f);
 	retVal = ProcessSource(p,source);
 	e = source->entity; /*used during FreeParser closing source!*/
+	pdtd = p->dtd;
 	Fclose(Stderr);
-	FreeDtd(p->dtd);
 	FreeParser(p);
+	FreeDtd(pdtd);
 	FreeEntity(e);
 	deinit_parser();
 L_1:
@@ -1158,11 +1130,11 @@ static int pyRXPParser_traverse(pyRXPParser *self, visitproc visit, void *arg){
 	return 0;
 	}
 static int pyRXPParser_clear(pyRXPParser* self){
-	Py_CLEAR(self->srcName);
-	Py_CLEAR(self->warnCB);
-	Py_CLEAR(self->eoCB);
-	Py_CLEAR(self->fourth);
-	Py_CLEAR(self->__instance_module__);
+	RLPy_CLEAR(self,srcName);
+	RLPy_CLEAR(self,warnCB);
+	RLPy_CLEAR(self,eoCB);
+	RLPy_CLEAR(self,fourth);
+	RLPy_CLEAR(self,__instance_module__);
 	return 0;
 	}
 
@@ -1176,6 +1148,7 @@ static struct PyModuleDef moduleDef;
 static int pyRXPParser_init(pyRXPParser* self, PyObject* args, PyObject* kw)
 {
 	Py_ssize_t	i;
+	PyObject *ob;
 
 	if(!PyArg_ParseTuple(args, ":Parser")) return -1;
 	Py_XDECREF(self->warnCB);
@@ -1184,12 +1157,24 @@ static int pyRXPParser_init(pyRXPParser* self, PyObject* args, PyObject* kw)
 	Py_XDECREF(self->fourth);
 	Py_XDECREF(self->srcName);
 	Py_XDECREF(self->__instance_module__);
-	self->warnCB = self->eoCB = self->ugeCB = self->fourth = self->srcName = NULL;
-	self->__instance_module__ = PyState_FindModule(&moduleDef);
+	self->warnCB = self->eoCB = self->ugeCB = self->fourth = self->srcName = self->__instance_module__ = NULL;
+
+	/*this hackery is to find the module that we're part of*/
+	ob = PyImport_GetModuleDict();	/*this is per interpeter*/
+	if (!ob) {
+		PyErr_SetString(moduleError,"Cannot find the systemn modules dict!");
+		return -1;
+	}
+	self->__instance_module__ = PyDict_GetItemString(ob,"pyRXPU");
+	if(!self->__instance_module__) {
+		PyErr_SetString(moduleError,"Cannot find the pyRXPU module object!");
+		return -1;
+	}
+
 	Py_INCREF(self->__instance_module__);
 	if(!(self->srcName=PyBytes_FromString("[unknown]"))){
-		PyErr_SetString(MSTATE(self->__instance_module__,moduleError),"Internal error, memory limit reached!");
-Lfree:	pyRXPParser_dealloc(self);
+		PyErr_SetString(moduleError,"Internal error, memory limit reached!");
+Lfree:	/*pyRXPParser_dealloc(self);*/
 		return -1;
 		}
 	for(i=0;flag_vals[i].k;i++)
@@ -1244,134 +1229,76 @@ static PyTypeObject pyRXPParserType = {
 	0,										/*tp_dictoffset*/
 	(initproc)pyRXPParser_init,				/*tp_init*/
 	0,										/*tp_alloc*/
-	0,										/*tp_new*/
+	PyType_GenericNew,						/*tp_new*/
 	};
 
+static int module_exec(PyObject *m)
+{
+	PyObject *parser_flags, *t;
+	int i;
 
-#if	defined(_DEBUG) && defined(WIN32)
-#	include <crtdbg.h>
-#endif
-#if MULTIPHASE_INIT!=0
-static int _module_traverse(PyObject *m, visitproc visit, void *arg) {
-	struct module_state *st = GETSTATE(m);
-/*fprintf(stderr,"+++++ _traverse: visit=%8p arg=%8p MULTIPHASE_INIT=%d\n", visit, arg, MULTIPHASE_INIT);*/
-	RLPy_VISIT(st,moduleError);
-	RLPy_VISIT(st,moduleVersion);
-	RLPy_VISIT(st,RXPVersion);
-	RLPy_VISIT(st,commentTagName);
-	RLPy_VISIT(st,piTagName);
-	RLPy_VISIT(st,CDATATagName);
-	RLPy_VISIT(st,recordLocation);
-	RLPy_VISIT(st,parser_flags);
-	RLPy_VISIT(st,parser);
-	return 0;
-	}
+	/* Add some attributes to the module */
+	if(PyModule_AddStringConstant(m, "version", VERSION)<0) goto fail;
+	if(PyModule_AddStringConstant(m, "RXPVersion", rxp_version_string)<0) goto fail;
+	if(PyModule_AddStringConstant(m, "recordLocation", "recordLocation")<0) goto fail;
+	if(PyModule_AddStringConstant(m, "piTagName", "<?")<0) goto fail;
+	if(PyModule_AddStringConstant(m, "commentTagName", "<!--")<0) goto fail;
+	if(PyModule_AddStringConstant(m, "CDATATagName", "<![CDATA[")<0) goto fail;
+    if (moduleError == NULL) {
+		moduleError = PyErr_NewException(MODULENAME ".error",NULL,NULL);
+		if(!moduleError) goto fail;
+		}
+    Py_INCREF(moduleError);
+    if(PyModule_AddObject(m, "error", moduleError)<0) goto fail;
 
-static int _module_clear(PyObject *m) {
-	struct module_state *st = GETSTATE(m);
-	Py_CLEAR(st->moduleError);
-	Py_CLEAR(st->moduleVersion);
-	Py_CLEAR(st->RXPVersion);
-	Py_CLEAR(st->commentTagName);
-	Py_CLEAR(st->piTagName);
-	Py_CLEAR(st->CDATATagName);
-	Py_CLEAR(st->recordLocation);
-	Py_CLEAR(st->parser_flags);
-	Py_CLEAR(st->parser);
+
+	parser_flags = PyDict_New();
+	if(!parser_flags)goto fail;
+	for(i=0;flag_vals[i].k;i++){
+		t=PyInt_FromLong(flag_vals[i].v);
+		if(!t)goto fail;
+		PyDict_SetItemString(parser_flags, flag_vals[i].k, t);
+		Py_DECREF(t);
+		}
+    if(PyModule_AddObject(m, "parser_flags", parser_flags)<0) goto fail;
+
+    pyRXPParserType.tp_base = &PyBaseObject_Type;
+	if(PyType_Ready(&pyRXPParserType)<0) goto fail;
+	if(PyModule_AddObject(m,"Parser", (PyObject *)&pyRXPParserType)<0) goto fail;
+
 	return 0;
-	}
-#endif
+fail:
+    Py_XDECREF(m);
+    return -1;
+}
+
+static struct PyModuleDef_Slot module_slots[] = {
+    {Py_mod_exec, module_exec},
+    {0, NULL},
+};
+
 static struct PyModuleDef moduleDef = {
 	PyModuleDef_HEAD_INIT,
 	MODULENAME,
 	__DOC__,
-	sizeof_module_state,
+	0,
+	NULL,
+	module_slots,
 	NULL,
 	NULL,
-	module_traverse,
-	module_clear,
 	NULL
 	};
-#	if CHAR_SIZE==16
-#		define MODULEINIT PyInit_pyRXPU
-#	else
-#		define MODULEINIT PyInit_pyRXP
-#	endif
-#	define OK_RET m
-#	define ERR_RET NULL
-#	define CREATE_MODULE() PyModule_Create(&moduleDef);PyState_AddModule(m,&moduleDef)
-PyMODINIT_FUNC MODULEINIT(void)
+
+PyMODINIT_FUNC PyInit_pyRXPU(void)
 {
-	PyObject *m=NULL, *t, *moduleVersion=NULL, *RXPVersion=NULL, *moduleError=NULL,
-			 *piTagName=NULL, *commentTagName=NULL, *CDATATagName=NULL, *recordLocation=NULL,
-			 *parser_flags=NULL;
-	int	i;
 	g_byteorder = InternalCharacterEncoding==CE_UTF_16B?1:-1;
 	g_encname = g_byteorder==1?"utf_16_be":"utf_16_le";
-
-#if	defined(_DEBUG) && defined(WIN32)
+#if	defined(DEBUG_PYRXP) && defined(WIN32)
+	int	i;
 	i = _CrtSetDbgFlag(_CRTDBG_REPORT_FLAG);
 	i |= _CRTDBG_CHECK_ALWAYS_DF;
 	_CrtSetDbgFlag(i);
 #endif
 
-	pyRXPParserType.tp_new = PyType_GenericNew;
-	if(PyType_Ready(&pyRXPParserType)<0)goto err;	/*set up the types by hand*/
-
-	/* Create the module and add the functions */
-	m = CREATE_MODULE();
-	if(!m)goto err;
-
-#if MULTIPHASE_INIT==0
-	g_module = m;
-#endif
-	/* Add some symbolic constants to the module */
-	moduleVersion = PyBytes_FromString(VERSION);
-	if(!moduleVersion)goto err;
-	RXPVersion = PyBytes_FromString(rxp_version_string);
-	if(!RXPVersion)goto err;
-	moduleError = PyErr_NewException(MODULENAME ".error",NULL,NULL);
-	if(!moduleError)goto err;
-	piTagName = PYSTRING8("<?");
-	if(!piTagName)goto err;
-	commentTagName = PYSTRING8("<!--");
-	if(!commentTagName)goto err;
-	CDATATagName = PYSTRING8("<![CDATA[");
-	if(!CDATATagName)goto err;
-	recordLocation = PyBytes_FromString("recordLocation");
-	if(!recordLocation)goto err;
-	parser_flags = PyDict_New();
-	if(!parser_flags)goto err;
-	for(i=0;flag_vals[i].k;i++){
-		t=PyInt_FromLong(flag_vals[i].v);
-		if(!t)goto err;
-		PyDict_SetItemString(parser_flags, flag_vals[i].k, t);
-		Py_DECREF(t);
-		}
-
-	/*add in the docstring*/
-#define ADD2MODULE(n,o) PyModule_AddObject(m,n,o);MSTATE(m,o)=o
-	ADD2MODULE("version", moduleVersion);
-	ADD2MODULE("RXPVersion", RXPVersion);
-	ADD2MODULE("error",moduleError);Py_INCREF(moduleError);
-	ADD2MODULE("piTagName", piTagName);
-	ADD2MODULE("commentTagName", commentTagName);
-	ADD2MODULE("CDATATagName", CDATATagName);
-	ADD2MODULE("recordLocation", recordLocation);
-	ADD2MODULE("parser_flags", parser_flags);
-	Py_INCREF((PyObject *)&pyRXPParserType);
-	PyModule_AddObject(m,"Parser", (PyObject *)&pyRXPParserType);
-	MSTATE(m,parser) = (PyObject *)&pyRXPParserType;
-	return OK_RET;
-err:
-	Py_XDECREF(moduleVersion);
-	Py_XDECREF(RXPVersion);
-	Py_XDECREF(moduleError);
-	Py_XDECREF(piTagName);
-	Py_XDECREF(commentTagName);
-	Py_XDECREF(CDATATagName);
-	Py_XDECREF(recordLocation);
-	Py_XDECREF(parser_flags);
-	Py_XDECREF(m);
-	return ERR_RET;
+    return PyModuleDef_Init(&moduleDef);
 }
