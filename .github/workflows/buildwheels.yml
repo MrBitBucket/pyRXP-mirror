@@ -58,7 +58,7 @@ jobs:
       - name: Build wheels
         run: python -m cibuildwheel --output-dir wheelhouse
         env:
-          CIBW_ARCHS_LINUX: auto aarch64
+          #CIBW_ARCHS_LINUX: auto aarch64 #seems to hang
           CIBW_ARCHS_MACOS: x86_64 arm64 universal2
 
       - name: upload wheels
