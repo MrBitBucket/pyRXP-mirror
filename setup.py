@@ -94,6 +94,7 @@ if __name__=='__main__': #NO RUNTESTS
 			license=license,
 			ext_modules = EXT_MODULES,
 			package_data = {'': ['pyRXP-license.txt']},
+            python_requires='>=3.6, <4',
             classifiers = [
 				'Development Status :: 5 - Production/Stable',
 				'Intended Audience :: Developers',
@@ -105,5 +106,11 @@ if __name__=='__main__': #NO RUNTESTS
 				'Operating System :: Microsoft :: Windows',
 				'Topic :: Software Development :: Libraries :: Python Modules',
 				'Topic :: Text Processing :: Markup :: XML',
+                'Programming Language :: Python :: 3',
+                'Programming Language :: Python :: 3.6',
+                'Programming Language :: Python :: 3.7',
+                'Programming Language :: Python :: 3.8',
+                'Programming Language :: Python :: 3.9',
+                'Programming Language :: Python :: 3.10',
                 ]
 			)
