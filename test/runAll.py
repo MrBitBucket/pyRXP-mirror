@@ -11,47 +11,50 @@ class Unbuffered(object):
         return getattr(self.stream, attr)
 
 def main():
-    import sys, os, psutil, platform
+    import sys, os
+    dbg = int(os.environ.get('PYRXPDEBUG','0'))
     sys.__old_stderr__ = sys.stderr
     sys.__stderr__ = sys.stderr = sys.stdout = Unbuffered(sys.stdout)
     wd = os.path.dirname(os.path.abspath(sys.argv[0]))
     sys.path.insert(0,wd)
     os.chdir(wd)
-    platform_attrs = [
-        "architecture",
-        "java_ver",
-        "libc_ver",
-        "machine",
-        "mac_ver",
-        "node",
-        "platform",
-        "processor",
-        "python_branch",
-        "python_build",
-        "python_compiler",
-        "python_implementation",
-        "python_revision",
-        "python_version",
-        "python_version_tuple",
-        "release",
-        "system",
-        "system_alias",
-        "uname",
-        "version",
-        "win32_edition",
-        "win32_is_iot",
-        "win32_ver",
-        ]
-    print(f'+++++ {sys.platform}')
-    print(f'+++++ {sys.byteorder}')
-    for a in platform_attrs:
-        if hasattr(platform,a):
-            try:
-                print(f'+++++ platform.{a}()={getattr(platform,a)()}')
-            except:
-                print(f'!!!!! platform.{a}()=cannot be determined')
+    if dbg:
+        import psutil, platform
+        platform_attrs = [
+            "architecture",
+            "java_ver",
+            "libc_ver",
+            "machine",
+            "mac_ver",
+            "node",
+            "platform",
+            "processor",
+            "python_branch",
+            "python_build",
+            "python_compiler",
+            "python_implementation",
+            "python_revision",
+            "python_version",
+            "python_version_tuple",
+            "release",
+            "system",
+            "system_alias",
+            "uname",
+            "version",
+            "win32_edition",
+            "win32_is_iot",
+            "win32_ver",
+            ]
+        print(f'+++++ {sys.platform}')
+        print(f'+++++ {sys.byteorder}')
+        for a in platform_attrs:
+            if hasattr(platform,a):
+                try:
+                    print(f'+++++ platform.{a}()={getattr(platform,a)()}')
+                except:
+                    print(f'!!!!! platform.{a}()=cannot be determined')
 
-    #special case import to allow reportlab to modify the envirnment in development
+    #special case import to allow reportlab to modify the environment in development
     try:
       import reportlab
     except ImportError:
@@ -67,7 +70,8 @@ def main():
         test_xmltestsuite.main(verbose, singles)
     else:
         test_xmltestsuite.main(3,1)
-    print(f'+++++ open Files={psutil.Process().open_files()!r}')
+    if dbg:
+        print(f'+++++ open Files={psutil.Process().open_files()!r}')
 
 if __name__=='__main__':
     main()
