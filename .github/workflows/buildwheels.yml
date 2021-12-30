@@ -11,31 +11,37 @@ jobs:
     name: clear-cache
     runs-on: ubuntu-latest
     steps:
+      - name: Dump github context
+        run:  echo "$GITHUB_CONTEXT"
+        shell: bash
+        env:
+          GITHUB_CONTEXT: ${{ toJson(github) }}
       - name: setup python for clear-cache
+        if: github.event.repository.name == 'pyRXP-mirror'
         uses: actions/setup-python@v2
         with:
           python-version: 3.9
       - name: clear
+        if: github.event.repository.name == 'pyRXP-mirror'
         env:
           CITOOLS_USER: "${{secrets.CITOOLS_USER}}"
           CITOOLS_PASSWORD: "${{secrets.CITOOLS_PASSWORD}}"
         run: |
             python -mpip install --no-cache https://hg.reportlab.com/hg-public/rl-ci-tools/archive/tip.tar.gz -U
-            python -mrl_ci_tools clear-cache "cibuildwheel/pyRXP"
-            echo "cleared remote cache for cibuildwheel/pyRXP"
+            python -mrl_ci_tools clear-cache "pyRXP"
+            echo "cleared remote cache for pyRXP"
   build-wheels-linux-mac-windows:
     needs: [clear-cache]
     name: Build wheels on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     env:
-      CIBW_SKIP: pp* cp37-macosx-arm64 cp37-macosx-universal2 cp36-macosx-arm64 cp36-macosx-universal2
+      CIBW_SKIP: pp* *-musllinux_* cp37-macosx_arm64 *-macosx_universal2 cp36-macosx_arm64 cp36-macosx_universal2
       #CIBW_BEFORE_BUILD_LINUX: yum install cairo-devel -y
       CIBW_BEFORE_TEST: pip install --no-cache-dir psutil
-      #CIBW_TEST_REQUIRES: "${{ matrix.os != 'macos-latest' && 'pyphen pycairo rlPyCairo' || 'pyphen' }}"
-
+      CIBW_MANYLINUX_I686_IMAGE: manylinux2014
       # Will avoid testing on emulated architectures
       # Skip trying to test arm64 builds on Intel Macs
-      CIBW_TEST_SKIP: "*-manylinux_{aarch64,ppc64le,s390x} *-macosx_arm64 *-macosx_universal2:arm64"
+      CIBW_TEST_SKIP: "*-manylinux_{aarch64,ppc64le,s390x} *-musllinux_* *-macosx_arm64 *-macosx_universal2:arm64"
       CIBW_TEST_COMMAND: python "{project}/test/runAll.py"
       CIBW_TEST_COMMAND_WINDOWS: python "{project}\test\runAll.py"
       CIBW_BUILD_VERBOSITY: 3
@@ -64,7 +70,7 @@ jobs:
       - name: Build wheels
         run: python -m cibuildwheel --output-dir wheelhouse
         env:
-          CIBW_ARCHS_LINUX: auto aarch64 #needs quemu setup
+          CIBW_ARCHS_LINUX: all #auto aarch64 #needs quemu setup
           CIBW_ARCHS_MACOS: x86_64 arm64 universal2
 
       - name: upload wheels
@@ -73,7 +79,7 @@ jobs:
           CITOOLS_PASSWORD: "${{secrets.CITOOLS_PASSWORD}}"
         run: |
           python -mpip install --no-cache https://hg.reportlab.com/hg-public/rl-ci-tools/archive/tip.tar.gz -U
-          python -mrl_ci_tools upload-caches --subdir="cibuildwheel/pyRXP" --verbosity=1 ./wheelhouse/*.whl
+          python -mrl_ci_tools upload-caches --subdir="pyRXP" --verbosity=1 ./wheelhouse/*.whl
           python -mrl_ci_tools env-upload
 
       - uses: actions/upload-artifact@v2
@@ -81,6 +87,7 @@ jobs:
           name: pyrxp-lin-win-mac
           path: ./wheelhouse/*.whl
   email:
+    if: github.event.repository.name == 'pyRXP-mirror'
     name: email
     needs: [build-wheels-linux-mac-windows]
     runs-on: ubuntu-latest
@@ -95,9 +102,9 @@ jobs:
           CITOOLS_PASSWORD: "${{secrets.CITOOLS_PASSWORD}}"
         run: |
             python -mpip install --no-cache https://hg.reportlab.com/hg-public/rl-ci-tools/archive/tip.tar.gz -U
-            BODY="$(python -mrl_ci_tools cache-info --subdir="cibuildwheel/pyRXP" '*.whl')"
+            BODY="$(python -mrl_ci_tools cache-info --subdir="pyRXP" '*.whl')"
             NUPLOADS=$(expr $(echo "$BODY" | wc -l) - 1)
-            SUBJECT="$NUPLOADS pyRXP wheels uploaded to cibuildwheel/pyRXP by github"
+            SUBJECT="$NUPLOADS pyRXP wheels uploaded to pypi/caches/pyRXP folder by github"
             python -mrl_ci_tools email --subject="$SUBJECT" --body="$BODY"
             echo "$SUBJECT"
             echo "$BODY"
