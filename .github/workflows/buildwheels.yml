@@ -19,7 +19,7 @@ jobs:
           GITHUB_CONTEXT: ${{ toJson(github) }}
       - name: setup python for clear-cache
         if: github.event.repository.name == 'pyRXP-mirror'
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
           python-version: 3.9
       - name: clear
@@ -59,7 +59,7 @@ jobs:
 
       - name: Set up QEMU
         if: runner.os == 'Linux'
-        uses: docker/setup-qemu-action@v1
+        uses: docker/setup-qemu-action@v3
         with:
           platforms: all
 
@@ -83,7 +83,7 @@ jobs:
           python -mrl_ci_tools upload-caches --subdir="pyRXP" --verbosity=1 ./wheelhouse/*.whl
           python -mrl_ci_tools env-upload
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         with:
           name: pyrxp-lin-win-mac
           path: ./wheelhouse/*.whl
@@ -94,7 +94,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: setup python for upload
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
           python-version: 3.9
       - name: email confirmation
